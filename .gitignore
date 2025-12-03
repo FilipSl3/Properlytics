@@ -1,0 +1,63 @@
+# =======================================================
+#               1. PYTHON / BACKEND
+# =======================================================
+# Katalogi i pliki generowane przez Python, PEP 3147
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Srodowisko wirtualne (venv) i cache
+# Upewnij sie, ze katalog 'venv' jest na poziomie backend/
+venv/
+.env*
+.python-version
+
+# Pliki generowane przez biblioteki ML
+*.joblib
+*.pkl
+*.h5
+*.model
+/backend/models/  # Zalecane: Ignoruj cały folder z wytrenowanymi modelami
+
+# =======================================================
+#               2. IDEs (JetBrains, VS Code)
+# =======================================================
+# Katalogi IDE (Wazne! Ignoruj caly katalog .idea/, ale z wyjatkami)
+.idea/
+!.idea/*.iml
+!.idea/libraries/
+.idea/workspace.xml  # Zawsze ignoruj, bo jest lokalny
+.idea/dataSources/
+.idea/dataSources.local.xml
+
+# VS Code
+.vscode/
+
+# =======================================================
+#               3. JAVASCRIPT / FRONTEND
+# =======================================================
+# Node.js: Zaleznosci i pliki tymczasowe
+/frontend/node_modules/
+/frontend/build/
+/frontend/.pnp
+/frontend/.pnp.js
+
+# Node logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Pliki środowiskowe (lokalne dane konfiguracyjne)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# =======================================================
+#               4. MISC (System/Inne)
+# =======================================================
+.DS_Store # macOS
+Thumbs.db # Windows
+/coverage
