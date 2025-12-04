@@ -6,3 +6,4 @@ shap
 pydantic
 requests
 beautifulsoup4
+apscheduler
