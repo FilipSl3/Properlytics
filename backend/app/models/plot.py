@@ -1,9 +1,15 @@
-from pydantic import BaseModel, Field
-
 class PlotInput(BaseModel):
-    area: float = Field(..., gt=0)
-    fence: int = Field(..., ge=0, le=1)
-    sewage: int = Field(..., ge=0, le=1)
-    electricity: int = Field(..., ge=0, le=1)
-    water: int = Field(..., ge=0, le=1)
-    gas: int = Field(..., ge=0, le=1)
+    area: confloat(gt=0)
+
+    type: Literal['building', 'agricultural', 'recreational', 'investment', 'forest', 'habitat']
+    locationType: Literal['city', 'suburban', 'country']
+
+    hasElectricity: conint(ge=0, le=1)
+    hasWater: conint(ge=0, le=1)
+    hasGas: conint(ge=0, le=1)
+    hasSewerage: conint(ge=0, le=1)
+    isHardAccess: conint(ge=0, le=1)
+    hasFence: conint(ge=0, le=1)
+
+    city: constr(min_length=1)
+    province: constr(min_length=1)

@@ -1,11 +1,24 @@
-from pydantic import BaseModel, Field
-
 class HouseInput(BaseModel):
-    area_house: float = Field(..., gt=0)    # m2 domu
-    area_plot: float = Field(..., gt=0)     # m2 działki
-    rooms: int = Field(..., ge=0)
-    floors: int = Field(..., ge=0)
-    year_built: int = Field(..., ge=1800, le=2025)
-    garage: int = Field(..., ge=0, le=1)
-    basement: int = Field(..., ge=0, le=1)
-    sewage: int = Field(..., ge=0, le=1)
+    areaHouse: confloat(gt=0)
+    areaPlot: confloat(gt=0)
+    rooms: conint(gt=0)
+    floors: conint(ge=0)
+    year: conint(ge=1800, le=2100)
+
+    buildType: Literal['detached', 'semi_detached', 'ribbon', 'manor']
+    constructionStatus: Literal['ready_to_use', 'to_completion', 'to_renovation', 'unfinished_close']
+    market: Literal['primary', 'secondary']
+    material: Literal['brick', 'wood', 'breezeblock', 'concrete', 'silikat']
+    roofType: Literal['tile', 'sheet', 'shingle', 'slate']
+
+    hasGarage: conint(ge=0, le=1)
+    hasBasement: conint(ge=0, le=1)
+    hasGas: conint(ge=0, le=1)
+    hasSewerage: conint(ge=0, le=1)
+    isHardAccess: conint(ge=0, le=1)
+
+    fenceType: constr(min_length=0) = ''
+    heatingType: constr(min_length=0) = ''
+
+    city: constr(min_length=1)
+    province: constr(min_length=1)
