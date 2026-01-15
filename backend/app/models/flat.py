@@ -1,3 +1,6 @@
+from pydantic import BaseModel
+from pydantic.types import confloat, conint, constr
+from typing import Literal
 class FlatInput(BaseModel):
     area: confloat(gt=0)  # większe od 0
     rooms: conint(gt=0)

@@ -1,9 +1,22 @@
 # backend/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import HTTPException
+
+from ml.model_loader import load_models
+from app.models.house import HouseInput
+from app.models.flat import FlatInput
+from app.models.plot import PlotInput
+
+import pandas as pd
+from ml.model_loader import ModelRegistry
 
 # Inicjalizacja aplikacji FastAPI
 app = FastAPI(title="Properlytics API")
+
+@app.on_event("startup")
+def startup_event():
+    load_models()
 
 origins = [
     "http://localhost:5173", 
@@ -28,21 +41,62 @@ def read_root():
 def get_api_status():
     return {"message": "API działa poprawnie", "version": "v1"}
 
-# mockup
-
 from app.models.house import HouseInput
 from app.models.flat import FlatInput
 from app.models.plot import PlotInput
 
 @app.post("/predict/house")
 def predict_house(data: HouseInput):
-    return {"predicted_price": 123456, "type": "house"}
+    model = ModelRegistry.house_model
+
+    if model is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Model HOUSE nie jest jeszcze dostępny"
+        )
+
+    input_df = pd.DataFrame([data.dict()])
+    prediction = model.predict(input_df)[0]
+
+    return {
+        "predicted_price": round(float(prediction), 2),
+        "type": "house"
+    }
+
 
 @app.post("/predict/flat")
 def predict_flat(data: FlatInput):
-    return {"predicted_price": 234567, "type": "flat" }
+    model = ModelRegistry.flat_model
+
+    if model is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Model FLAT nie jest jeszcze dostępny"
+        )
+
+    input_df = pd.DataFrame([data.dict()])
+    prediction = model.predict(input_df)[0]
+
+    return {
+        "predicted_price": round(float(prediction), 2),
+        "type": "flat"
+    }
 
 
 @app.post("/predict/plot")
 def predict_plot(data: PlotInput):
-    return {"predicted_price": 345678, "type": "plot"}
+    model = ModelRegistry.plot_model
+
+    if model is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Model PLOT nie jest jeszcze dostępny"
+        )
+
+    input_df = pd.DataFrame([data.dict()])
+    prediction = model.predict(input_df)[0]
+
+    return {
+        "predicted_price": round(float(prediction), 2),
+        "type": "plot"
+    }

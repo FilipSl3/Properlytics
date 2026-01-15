@@ -1,3 +1,6 @@
+from pydantic import BaseModel
+from pydantic.types import confloat, conint, constr
+from typing import Literal
 class HouseInput(BaseModel):
     areaHouse: confloat(gt=0)
     areaPlot: confloat(gt=0)
