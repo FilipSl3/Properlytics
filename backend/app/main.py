@@ -119,7 +119,6 @@ def compute_prediction_and_shap(pipeline, input_df):
 
 @app.post(
     "/predict/house",
-    response_model=PredictionResponse,
     summary="Predykcja ceny domu",
     description="Zwraca przewidywaną cenę domu oraz najważniejsze cechy wpływające na predykcję (SHAP)."
 )
@@ -143,24 +142,16 @@ def predict_house(data: HouseInput):
 
 @app.post(
     "/predict/flat",
-    response_model=PredictionResponse,
     summary="Predykcja ceny mieszkania",
     description="Zwraca przewidywaną cenę mieszkania oraz najważniejsze cechy wpływające na predykcję (SHAP)."
 )
 def predict_flat(data: FlatInput):
-    pipeline = ModelRegistry.flat_model
-    if pipeline is None:
+    model = ModelRegistry.flat_model
+    if model is None:
         raise HTTPException(status_code=503, detail="Flat model not loaded")
-
-    input_df = adapt_flat_input(data)
 
     input_data = data.dict()
     input_df = pd.DataFrame([input_data])
-    
-    try:
-        cena, shap_values = compute_prediction_and_shap(pipeline, input_df)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
     # Mapowanie nazw kolumn
     rename_dict = {
@@ -213,6 +204,10 @@ def predict_flat(data: FlatInput):
         "ready_to_use": "ready_to_use",
         "to_completion": "to_completion",
         "to_renovation": "to_renovation",
+
+        # Miasta - fallback
+        "Warszawa": "warszawa", "Kraków": "krakow", "Wrocław": "wroclaw",
+        "Poznań": "poznan", "Gdańsk": "gdansk", "Łódź": "lodz", "Rzeszów": "rzeszow"
     }
 
     cols_to_translate = ["heating", "market", "building_type", "building_material", "finishing"]
@@ -226,14 +221,16 @@ def predict_flat(data: FlatInput):
         if col in input_df.columns:
             input_df[col] = input_df[col].astype(int)
 
+    # 2. OBLICZENIA GŁÓWNE
     try:
-        base_prediction = model.predict(input_df)[0]
+        cena, shap_values = compute_prediction_and_shap(model, input_df)
+        base_prediction = cena
     except Exception as e:
         print(f"Błąd predykcji: {e}")
-        # Wypisujemy dane dla debugowania w razie błędu
         print("Dane wejściowe do modelu:", input_df.to_dict(orient="records"))
         raise HTTPException(status_code=500, detail=f"Błąd modelu: {str(e)}")
 
+    # 3. Logika Porównawcza (Components Logic)
     components = []
 
     def check_diff(col_name, target_val, label_text):
@@ -342,7 +339,7 @@ def predict_flat(data: FlatInput):
         check_diff("building_type", "block", "Typ: Dom wielorodzinny")  # Różnica względem bloku
 
     elif curr_type == "block":
-        check_diff("building_type", "apartment", "Typ: Blok (vs Apartament)") # Różnica względem apartamentowca
+        check_diff("building_type", "apartment", "Typ: Blok (vs Apartament)")  # Różnica względem apartamentowca
 
     # ROK BUDOWY
     curr_year = input_df.iloc[0]["year_built"]
@@ -381,18 +378,17 @@ def predict_flat(data: FlatInput):
 
     margin = 0.05
     return {
+        "cena": cena,
+        "shap_values": shap_values,
+        "type": "flat",
         "predicted_price": round(float(base_prediction), 2),
         "price_min": round(float(base_prediction * (1 - margin)), 2),
         "price_max": round(float(base_prediction * (1 + margin)), 2),
         "components": components
-        "cena": cena,
-        "shap_values": shap_values,
-        "type": "flat"
     }
 
 @app.post(
     "/predict/plot",
-    response_model=PredictionResponse,
     summary="Predykcja ceny działki",
     description="Zwraca przewidywaną cenę działki oraz najważniejsze cechy wpływające na predykcję (SHAP)."
 )

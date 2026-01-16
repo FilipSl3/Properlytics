@@ -16,7 +16,6 @@ def load_models():
         ModelRegistry.flat_model = joblib.load(MODEL_DIR / "flat.joblib")
         ModelRegistry.plot_model = joblib.load(MODEL_DIR / "plot.joblib")
 
-    try:
         # 1. Mieszkanie
         flat_path = MODEL_DIR / "flat.joblib"
         if flat_path.exists():
