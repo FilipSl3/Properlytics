@@ -1,12 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from '../api';
+
+interface PredictionData {
+  price_min: number;
+  price_max: number;
+  components: Array<{ name: string; value: number }>;
+}
+
+const PROVINCES = [
+  "Dolnośląskie", "Kujawsko-pomorskie", "Lubelskie", "Lubuskie", "Łódzkie",
+  "Małopolskie", "Mazowieckie", "Opolskie", "Podkarpackie", "Podlaskie",
+  "Pomorskie", "Śląskie", "Świętokrzyskie", "Warmińsko-mazurskie", "Wielkopolskie", "Zachodniopomorskie"
+];
+
+const CITY_TO_PROVINCE: Record<string, string> = {
+  "warszawa": "Mazowieckie", "radom": "Mazowieckie", "płock": "Mazowieckie",
+  "kraków": "Małopolskie", "tarnów": "Małopolskie",
+  "łódź": "Łódzkie",
+  "wrocław": "Dolnośląskie", "wałbrzych": "Dolnośląskie",
+  "poznań": "Wielkopolskie",
+  "gdańsk": "Pomorskie", "gdynia": "Pomorskie", "sopot": "Pomorskie",
+  "szczecin": "Zachodniopomorskie",
+  "bydgoszcz": "Kujawsko-pomorskie", "toruń": "Kujawsko-pomorskie",
+  "lublin": "Lubelskie",
+  "katowice": "Śląskie", "częstochowa": "Śląskie", "gliwice": "Śląskie",
+  "białystok": "Podlaskie",
+  "rzeszów": "Podkarpackie",
+  "kielce": "Świętokrzyskie",
+  "olsztyn": "Warmińsko-mazurskie",
+  "opole": "Opolskie",
+  "zielona góra": "Lubuskie", "gorzów wielkopolski": "Lubuskie"
+};
 
 export default function FlatForm() {
   const [formData, setFormData] = useState({
-    area: '',
-    rooms: '',
-    floor: '',
-    totalFloors: '',
-    year: '',
+    area: '0',
+    rooms: '0',
+    floor: '0',
+    totalFloors: '0',
+    year: '1800',
     buildType: 'block',
     material: 'brick',
     heating: 'district',
@@ -15,59 +47,102 @@ export default function FlatForm() {
     city: 'Warszawa',
     district: '',
     province: 'Mazowieckie',
-
     hasLift: false,
-    hasOutdoor: false, // Balkon/Taras/Ogródek
+    hasOutdoor: false,
     hasParking: false,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [predictionData, setPredictionData] = useState<PredictionData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const cityLower = formData.city.trim().toLowerCase();
+    if (CITY_TO_PROVINCE[cityLower]) {
+      setFormData(prev => ({ ...prev, province: CITY_TO_PROVINCE[cityLower] }));
+    }
+  }, [formData.city]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
 
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
 
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+    if (predictionData) setPredictionData(null);
   };
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
     const currentYear = new Date().getFullYear();
 
-    if (!formData.area || Number(formData.area) <= 0) newErrors.area = "Wymagane";
-    if (!formData.rooms || Number(formData.rooms) <= 0) newErrors.rooms = "Wymagane";
-    if (formData.floor === '') newErrors.floor = "Wymagane";
-    if (!formData.year || Number(formData.year) < 1800 || Number(formData.year) > currentYear + 5) newErrors.year = "Błędny rok";
+    const area = Number(formData.area);
+    if (!formData.area || area < 10) newErrors.area = "Min. 10 m²";
+    if (area > 500) newErrors.area = "Max. 500 m²";
+
+    const rooms = Number(formData.rooms);
+    if (!formData.rooms || rooms < 1) newErrors.rooms = "Min. 1 pokój";
+    if (rooms > 15) newErrors.rooms = "Max. 15 pokoi";
+
+    const floor = Number(formData.floor);
+    if (formData.floor === '' || floor < -1) newErrors.floor = "Min. -1 (piwnica)";
+    if (floor > 50) newErrors.floor = "Max. 50 piętro";
+
+    const totalFloors = Number(formData.totalFloors);
+    if (formData.totalFloors === '' || totalFloors < 1) newErrors.totalFloors = "Min. 1 piętro";
+    if (totalFloors > 50) newErrors.totalFloors = "Max. 50 pięter";
+    if (floor > totalFloors) newErrors.floor = "Piętro nie może być wyższe niż budynek";
+
+    const year = Number(formData.year);
+    if (!formData.year || year < 1800) newErrors.year = "Zbyt stary rok";
+    if (year > currentYear + 5) newErrors.year = "Rok z przyszłości?";
+
     if (!formData.city.trim()) newErrors.city = "Wymagane";
+    if (!formData.province) newErrors.province = "Wymagane";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validate()) {
-      console.log("Dane mieszkania:", formData);
-      alert("Dane poprawne.");
+    if (!validate()) return;
+
+    setLoading(true);
+    setApiError(null);
+    setPredictionData(null);
+
+    const payload = {
+      ...formData,
+      area: Number(formData.area),
+      rooms: Number(formData.rooms),
+      floor: Number(formData.floor),
+      totalFloors: Number(formData.totalFloors),
+      year: Number(formData.year),
+      hasLift: formData.hasLift ? 1 : 0,
+      hasOutdoor: formData.hasOutdoor ? 1 : 0,
+      hasParking: formData.hasParking ? 1 : 0,
+    };
+
+    try {
+      const response = await api.post('/predict/flat', payload);
+      setPredictionData(response.data);
+    } catch (err: any) {
+      console.error("Błąd API:", err);
+      setApiError("Wystąpił błąd podczas wyceny. Sprawdź połączenie.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const getInputClass = (fieldName: string) => `
     w-full p-3 border rounded-lg outline-none transition bg-white
-    ${errors[fieldName] 
-      ? 'border-red-500 focus:ring-red-500' 
-      : 'border-gray-300 focus:ring-blue-500'}
+    ${errors[fieldName] ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300 focus:ring-blue-500'}
   `;
 
   const labelClass = "block text-sm font-medium text-gray-700 mb-1";
-  const checkboxContainerClass = "flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition cursor-pointer hover:border-blue-200";
 
   return (
     <div className="max-w-4xl mx-auto py-8">
@@ -77,28 +152,38 @@ export default function FlatForm() {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
             <div>
               <label className={labelClass}>Powierzchnia (m²)</label>
-              <input type="number" name="area" value={formData.area} onChange={handleChange} className={getInputClass('area')} step="0.1" />
+              <input type="number" name="area" value={formData.area} onChange={handleChange} className={getInputClass('area')} step="0.1" min="10" max="500" placeholder="np. 50" />
+              {errors.area && <p className="text-red-500 text-xs mt-1">{errors.area}</p>}
             </div>
+
             <div>
               <label className={labelClass}>Liczba pokoi</label>
-              <input type="number" name="rooms" value={formData.rooms} onChange={handleChange} className={getInputClass('rooms')} />
+              <input type="number" name="rooms" value={formData.rooms} onChange={handleChange} className={getInputClass('rooms')} min="1" max="15" />
+              {errors.rooms && <p className="text-red-500 text-xs mt-1">{errors.rooms}</p>}
             </div>
+
             <div>
-              <label className={labelClass}>Piętro (0 = Parter)</label>
-              <input type="number" name="floor" value={formData.floor} onChange={handleChange} className={getInputClass('floor')} />
+              <label className={labelClass}>Piętro</label>
+              <input type="number" name="floor" value={formData.floor} onChange={handleChange} className={getInputClass('floor')} min="-1" max="50" placeholder="0 = Parter" />
+              {errors.floor && <p className="text-red-500 text-xs mt-1">{errors.floor}</p>}
             </div>
+
             <div>
               <label className={labelClass}>Liczba pięter w budynku</label>
-              <input type="number" name="totalFloors" value={formData.totalFloors} onChange={handleChange} className={getInputClass('totalFloors')} />
+              <input type="number" name="totalFloors" value={formData.totalFloors} onChange={handleChange} className={getInputClass('totalFloors')} min="1" max="60" />
+               {errors.totalFloors && <p className="text-red-500 text-xs mt-1">{errors.totalFloors}</p>}
             </div>
+
             <div>
               <label className={labelClass}>Rok budowy</label>
-              <input type="number" name="year" value={formData.year} onChange={handleChange} className={getInputClass('year')} />
+              <input type="number" name="year" value={formData.year} onChange={handleChange} className={getInputClass('year')} min="1800" max="2030" placeholder="np. 2010" />
+              {errors.year && <p className="text-red-500 text-xs mt-1">{errors.year}</p>}
             </div>
+
              <div>
               <label className={labelClass}>Rodzaj zabudowy</label>
               <select name="buildType" value={formData.buildType} onChange={handleChange} className={getInputClass('buildType')}>
@@ -147,38 +232,116 @@ export default function FlatForm() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t">
             <div>
                <label className={labelClass}>Miejscowość</label>
-               <input type="text" name="city" value={formData.city} onChange={handleChange} className={getInputClass('city')} />
+               <input
+                  type="text"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                  className={getInputClass('city')}
+                  placeholder="np. Warszawa"
+               />
+               {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
             </div>
+
             <div>
-               <label className={labelClass}>Dzielnica</label>
-               <input type="text" name="district" value={formData.district} onChange={handleChange} className={getInputClass('district')} />
-            </div>
-             <div>
                <label className={labelClass}>Województwo</label>
-               <input type="text" name="province" value={formData.province} onChange={handleChange} className={getInputClass('province')} />
+               <select name="province" value={formData.province} onChange={handleChange} className={getInputClass('province')}>
+                 {PROVINCES.map(prov => (
+                   <option key={prov} value={prov}>{prov}</option>
+                 ))}
+               </select>
+               {errors.province && <p className="text-red-500 text-xs mt-1">{errors.province}</p>}
+            </div>
+
+            <div>
+               <label className={labelClass}>Dzielnica (opcjonalne)</label>
+               <input type="text" name="district" value={formData.district} onChange={handleChange} className={getInputClass('district')} />
             </div>
           </div>
 
           <div className="pt-4 border-t">
             <label className={labelClass}>Udogodnienia</label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
-              <label className={checkboxContainerClass}>
-                <input type="checkbox" name="hasLift" checked={formData.hasLift} onChange={handleChange} className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
+              <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input type="checkbox" name="hasLift" checked={formData.hasLift} onChange={handleChange} className="w-5 h-5 text-blue-600 rounded" />
                 <span className="text-gray-700 font-medium">Winda</span>
               </label>
-              <label className={checkboxContainerClass}>
-                <input type="checkbox" name="hasOutdoor" checked={formData.hasOutdoor} onChange={handleChange} className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
-                <span className="text-gray-700 font-medium">Balkon / Taras / Ogródek</span>
+              <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input type="checkbox" name="hasOutdoor" checked={formData.hasOutdoor} onChange={handleChange} className="w-5 h-5 text-blue-600 rounded" />
+                <span className="text-gray-700 font-medium">Balkon/Taras/Ogród</span>
               </label>
-              <label className={checkboxContainerClass}>
-                <input type="checkbox" name="hasParking" checked={formData.hasParking} onChange={handleChange} className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
+              <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input type="checkbox" name="hasParking" checked={formData.hasParking} onChange={handleChange} className="w-5 h-5 text-blue-600 rounded" />
                 <span className="text-gray-700 font-medium">Miejsce parkingowe</span>
               </label>
             </div>
           </div>
 
-          <button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-4 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition shadow-lg text-lg">
-            Oblicz Wycenę Mieszkania
+          <div className="space-y-6 pt-6 border-t border-gray-100">
+             {apiError && (
+                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-center font-medium">
+                  ⚠️ {apiError}
+                </div>
+             )}
+
+             {predictionData && !loading && (
+                <div className="animate-fade-in space-y-6">
+
+                  <div className="p-8 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl text-center shadow-md relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-green-500"></div>
+                    <p className="text-green-800 font-bold uppercase tracking-widest text-sm mb-3">
+                      Szacowany Przedział Wartości
+                    </p>
+                    <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4">
+                        <span className="text-4xl md:text-5xl font-extrabold text-gray-900">
+                          {predictionData.price_min.toLocaleString('pl-PL', { maximumFractionDigits: 0 })}
+                        </span>
+                        <span className="text-2xl text-gray-400 font-light">—</span>
+                        <span className="text-4xl md:text-5xl font-extrabold text-green-700">
+                          {predictionData.price_max.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} zł
+                        </span>
+                    </div>
+                  </div>
+
+                  {predictionData.components.length > 0 ? (
+                    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                      <div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
+                        <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                          📊 Co wpłynęło na wycenę?
+                        </h3>
+                      </div>
+
+                      <div className="divide-y divide-gray-100">
+                        {predictionData.components.map((comp, index) => (
+                          <div key={index} className="p-4 flex justify-between items-center hover:bg-gray-50 transition">
+                            <span className="text-gray-700 font-medium">{comp.name}</span>
+                            <div className={`flex items-center gap-2 font-bold ${comp.value > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                              {comp.value > 0 ? '+' : ''}
+                              {comp.value.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} zł
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-gray-500 text-sm bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                      Standardowe parametry (brak czynników znacząco zmieniających bazową cenę).
+                    </div>
+                  )}
+                </div>
+             )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className={`w-full text-white font-bold py-4 rounded-xl shadow-lg text-lg transition
+              ${loading 
+                ? 'bg-gray-400 cursor-wait' 
+                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:-translate-y-0.5'
+              }`}
+          >
+            {loading ? 'Obliczam wycenę...' : 'Oblicz Wycenę Mieszkania'}
           </button>
         </form>
       </div>
