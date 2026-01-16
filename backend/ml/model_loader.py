@@ -11,6 +11,10 @@ class ModelRegistry:
 
 def load_models():
     print(f"Szukam modeli w folderze: {MODEL_DIR}")
+    try:
+        ModelRegistry.house_model = joblib.load(MODEL_DIR / "house.joblib")
+        ModelRegistry.flat_model = joblib.load(MODEL_DIR / "flat.joblib")
+        ModelRegistry.plot_model = joblib.load(MODEL_DIR / "plot.joblib")
 
     try:
         # 1. Mieszkanie
