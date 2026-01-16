@@ -12,7 +12,11 @@ import pandas as pd
 from ml.model_loader import ModelRegistry
 
 # Inicjalizacja aplikacji FastAPI
-app = FastAPI(title="Properlytics API")
+app = FastAPI(
+    title="Properlytics API",
+    description="API do predykcji cen nieruchomości (domy, mieszkania, działki).",
+    version="1.0.0"
+)
 
 @app.on_event("startup")
 def startup_event():
@@ -44,59 +48,132 @@ def get_api_status():
 from app.models.house import HouseInput
 from app.models.flat import FlatInput
 from app.models.plot import PlotInput
+from ml.model_loader import ModelRegistry
+from ml.input_adapter import (
+    adapt_house_input,
+    adapt_flat_input,
+    adapt_plot_input,
+)
+from app.models.response import PredictionResponse
+import shap
 
-@app.post("/predict/house")
+TOP_N_SHAP = 15
+
+
+def clean_feature_name(name: str) -> str:
+    return (
+        name.replace("num__", "")
+            .replace("cat__", "")
+            .replace("_", " ")
+            .strip()
+    )
+
+
+def compute_prediction_and_shap(pipeline, input_df):
+    prediction = pipeline.predict(input_df)[0]
+
+    if not hasattr(pipeline, "named_steps"):
+        return round(float(prediction), 2), {}
+
+    preprocessor = pipeline.named_steps.get("preprocessing")
+    model = pipeline.named_steps.get("model")
+
+    if model is None or not hasattr(model, "estimators_"):
+        return round(float(prediction), 2), {}
+
+    X_transformed = preprocessor.transform(input_df)
+
+    if hasattr(X_transformed, "toarray"):
+        X_transformed = X_transformed.toarray()
+
+    feature_names = preprocessor.get_feature_names_out()
+
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(X_transformed)[0]
+
+    shap_dict = {
+        clean_feature_name(feature_names[i]): round(float(shap_values[i]), 2)
+        for i in range(len(feature_names))
+    }
+
+    shap_top = dict(
+        sorted(
+            shap_dict.items(),
+            key=lambda x: abs(x[1]),
+            reverse=True
+        )[:TOP_N_SHAP]
+    )
+
+    return round(float(prediction), 2), shap_top
+
+@app.post(
+    "/predict/house",
+    response_model=PredictionResponse,
+    summary="Predykcja ceny domu",
+    description="Zwraca przewidywaną cenę domu oraz najważniejsze cechy wpływające na predykcję (SHAP)."
+)
 def predict_house(data: HouseInput):
-    model = ModelRegistry.house_model
+    pipeline = ModelRegistry.house_model
+    if pipeline is None:
+        raise HTTPException(status_code=503, detail="House model not loaded")
 
-    if model is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Model HOUSE nie jest jeszcze dostępny"
-        )
+    input_df = adapt_house_input(data)
 
-    input_df = pd.DataFrame([data.dict()])
-    prediction = model.predict(input_df)[0]
+    try:
+        cena, shap_values = compute_prediction_and_shap(pipeline, input_df)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
     return {
-        "predicted_price": round(float(prediction), 2),
+        "cena": cena,
+        "shap_values": shap_values,
         "type": "house"
     }
 
-
-@app.post("/predict/flat")
+@app.post(
+    "/predict/flat",
+    response_model=PredictionResponse,
+    summary="Predykcja ceny mieszkania",
+    description="Zwraca przewidywaną cenę mieszkania oraz najważniejsze cechy wpływające na predykcję (SHAP)."
+)
 def predict_flat(data: FlatInput):
-    model = ModelRegistry.flat_model
+    pipeline = ModelRegistry.flat_model
+    if pipeline is None:
+        raise HTTPException(status_code=503, detail="Flat model not loaded")
 
-    if model is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Model FLAT nie jest jeszcze dostępny"
-        )
+    input_df = adapt_flat_input(data)
 
-    input_df = pd.DataFrame([data.dict()])
-    prediction = model.predict(input_df)[0]
+    try:
+        cena, shap_values = compute_prediction_and_shap(pipeline, input_df)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
     return {
-        "predicted_price": round(float(prediction), 2),
+        "cena": cena,
+        "shap_values": shap_values,
         "type": "flat"
     }
 
-
-@app.post("/predict/plot")
+@app.post(
+    "/predict/plot",
+    response_model=PredictionResponse,
+    summary="Predykcja ceny działki",
+    description="Zwraca przewidywaną cenę działki oraz najważniejsze cechy wpływające na predykcję (SHAP)."
+)
 def predict_plot(data: PlotInput):
-    model = ModelRegistry.plot_model
+    pipeline = ModelRegistry.plot_model
+    if pipeline is None:
+        raise HTTPException(status_code=503, detail="Plot model not loaded")
 
-    if model is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Model PLOT nie jest jeszcze dostępny"
-        )
+    input_df = adapt_plot_input(data)
 
-    input_df = pd.DataFrame([data.dict()])
-    prediction = model.predict(input_df)[0]
+    try:
+        cena, shap_values = compute_prediction_and_shap(pipeline, input_df)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
     return {
-        "predicted_price": round(float(prediction), 2),
+        "cena": cena,
+        "shap_values": shap_values,
         "type": "plot"
     }
