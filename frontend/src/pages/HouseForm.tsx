@@ -35,14 +35,14 @@ const CITY_TO_PROVINCE: Record<string, string> = {
 
 export default function HouseForm() {
   const [formData, setFormData] = useState({
-    areaHouse: '100',
-    areaPlot: '300',
-    rooms: '4',
+    areaHouse: '',
+    areaPlot: '',
+    rooms: '',
     buildType: 'detached',
     constructionStatus: 'ready_to_use',
     market: 'secondary',
-    floors: '1',
-    year: '2000',
+    floors: '',
+    year: '',
     material: 'brick',
     roofType: 'diagonal',
     city: 'Warszawa',
@@ -162,10 +162,12 @@ export default function HouseForm() {
       setPredictionData(response.data);
     } catch (err: any) {
       console.error("Błąd API:", err);
-      if (err.response && err.response.status === 422) {
-          setApiError("Błąd walidacji danych. Sprawdź poprawność formularza.");
+      if (err.response) {
+        setApiError(`Błąd serwera: ${err.response.status}. Sprawdź dane.`);
+      } else if (err.request) {
+        setApiError("Nie można połączyć się z serwerem. Upewnij się, że masz poprawne połączenie z Internetem.");
       } else {
-          setApiError("Wystąpił błąd podczas wyceny domu.");
+        setApiError("Wystąpił nieoczekiwany błąd aplikacji.");
       }
     } finally {
       setLoading(false);
@@ -204,12 +206,12 @@ export default function HouseForm() {
             </div>
             <div>
               <label className={labelClass}>Liczba pokoi</label>
-              <input type="number" name="rooms" value={formData.rooms} onChange={handleChange} className={getInputClass('rooms')} />
+              <input type="number" name="rooms" value={formData.rooms} onChange={handleChange} className={getInputClass('rooms')} placeholder="np. 1"/>
               {errors.rooms && <p className="text-red-500 text-xs mt-1">{errors.rooms}</p>}
             </div>
             <div>
               <label className={labelClass}>Rok budowy</label>
-              <input type="number" name="year" value={formData.year} onChange={handleChange} className={getInputClass('year')} />
+              <input type="number" name="year" value={formData.year} onChange={handleChange} className={getInputClass('year')} placeholder="np. 2026"/>
               {errors.year && <p className="text-red-500 text-xs mt-1">{errors.year}</p>}
             </div>
             <div>
