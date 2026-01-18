@@ -38,7 +38,7 @@ export default function FlatForm() {
     rooms: '0',
     floor: '0',
     totalFloors: '0',
-    year: '1800',
+    year: '2000',
     buildType: 'block',
     material: 'brick',
     heating: 'district',
@@ -156,31 +156,31 @@ export default function FlatForm() {
 
             <div>
               <label className={labelClass}>Powierzchnia (m²)</label>
-              <input type="number" name="area" value={formData.area} onChange={handleChange} className={getInputClass('area')} step="0.1" min="10" max="500" placeholder="np. 50" />
+              <input type="number" name="area" value={formData.area} onChange={handleChange} className={getInputClass('area')} step="0.1" placeholder="np. 50" />
               {errors.area && <p className="text-red-500 text-xs mt-1">{errors.area}</p>}
             </div>
 
             <div>
               <label className={labelClass}>Liczba pokoi</label>
-              <input type="number" name="rooms" value={formData.rooms} onChange={handleChange} className={getInputClass('rooms')} min="1" max="15" />
+              <input type="number" name="rooms" value={formData.rooms} onChange={handleChange} className={getInputClass('rooms')} />
               {errors.rooms && <p className="text-red-500 text-xs mt-1">{errors.rooms}</p>}
             </div>
 
             <div>
               <label className={labelClass}>Piętro</label>
-              <input type="number" name="floor" value={formData.floor} onChange={handleChange} className={getInputClass('floor')} min="-1" max="50" placeholder="0 = Parter" />
+              <input type="number" name="floor" value={formData.floor} onChange={handleChange} className={getInputClass('floor')} placeholder="0 = Parter" />
               {errors.floor && <p className="text-red-500 text-xs mt-1">{errors.floor}</p>}
             </div>
 
             <div>
               <label className={labelClass}>Liczba pięter w budynku</label>
-              <input type="number" name="totalFloors" value={formData.totalFloors} onChange={handleChange} className={getInputClass('totalFloors')} min="1" max="60" />
+              <input type="number" name="totalFloors" value={formData.totalFloors} onChange={handleChange} className={getInputClass('totalFloors')} />
                {errors.totalFloors && <p className="text-red-500 text-xs mt-1">{errors.totalFloors}</p>}
             </div>
 
             <div>
               <label className={labelClass}>Rok budowy</label>
-              <input type="number" name="year" value={formData.year} onChange={handleChange} className={getInputClass('year')} min="1800" max="2030" placeholder="np. 2010" />
+              <input type="number" name="year" value={formData.year} onChange={handleChange} className={getInputClass('year')} placeholder="np. 2010" />
               {errors.year && <p className="text-red-500 text-xs mt-1">{errors.year}</p>}
             </div>
 
@@ -287,9 +287,9 @@ export default function FlatForm() {
              {predictionData && !loading && (
                 <div className="animate-fade-in space-y-6">
 
-                  <div className="p-8 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl text-center shadow-md relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-2 bg-green-500"></div>
-                    <p className="text-green-800 font-bold uppercase tracking-widest text-sm mb-3">
+                  <div className="p-8 bg-gradient-to-br from-blue-50 to-emerald-50 border border-blue-200 rounded-2xl text-center shadow-md relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-blue-500"></div>
+                    <p className="text-blue-800 font-bold uppercase tracking-widest text-sm mb-3">
                       Szacowany Przedział Wartości
                     </p>
                     <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4">
@@ -297,7 +297,7 @@ export default function FlatForm() {
                           {predictionData.price_min.toLocaleString('pl-PL', { maximumFractionDigits: 0 })}
                         </span>
                         <span className="text-2xl text-gray-400 font-light">—</span>
-                        <span className="text-4xl md:text-5xl font-extrabold text-green-700">
+                        <span className="text-4xl md:text-5xl font-extrabold text-blue-700">
                           {predictionData.price_max.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} zł
                         </span>
                     </div>

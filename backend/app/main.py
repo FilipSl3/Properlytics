@@ -29,9 +29,9 @@ def startup_event():
         model = ModelRegistry.flat_model
         if model and hasattr(model, 'named_steps') and 'model' in model.named_steps:
             model.named_steps['model'].n_jobs = 1
-            print("✅ Model FLAT przestawiony na tryb API (n_jobs=1)")
+            print("Model FLAT przestawiony na tryb API (n_jobs=1)")
     except Exception as e:
-        print(f"⚠️ Nie udało się przestawić n_jobs: {e}")
+        print(f"Nie udało się przestawić n_jobs: {e}")
 
 origins = [
     "http://localhost:5173", 
@@ -56,9 +56,6 @@ def read_root():
 def get_api_status():
     return {"message": "API działa poprawnie", "version": "v1"}
 
-from app.models.house import HouseInput
-from app.models.flat import FlatInput
-from app.models.plot import PlotInput
 from ml.model_loader import ModelRegistry
 from ml.input_adapter import (
     adapt_house_input,
@@ -134,8 +131,14 @@ def predict_house(data: HouseInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    margin = 0.05
+    price_min = round(cena * (1 - margin), 2)
+    price_max = round(cena * (1 + margin), 2)
+
     return {
         "cena": cena,
+        "price_min": price_min,
+        "price_max": price_max,
         "shap_values": shap_values,
         "type": "house"
     }
@@ -205,7 +208,7 @@ def predict_flat(data: FlatInput):
         "to_completion": "to_completion",
         "to_renovation": "to_renovation",
 
-        # Miasta - fallback
+        # Miasta
         "Warszawa": "warszawa", "Kraków": "krakow", "Wrocław": "wroclaw",
         "Poznań": "poznan", "Gdańsk": "gdansk", "Łódź": "lodz", "Rzeszów": "rzeszow"
     }
@@ -404,8 +407,14 @@ def predict_plot(data: PlotInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    margin = 0.10
+    price_min = round(cena * (1 - margin), 2)
+    price_max = round(cena * (1 + margin), 2)
+
     return {
         "cena": cena,
+        "price_min": price_min,
+        "price_max": price_max,
         "shap_values": shap_values,
         "type": "plot"
     }

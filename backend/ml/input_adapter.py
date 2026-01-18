@@ -1,12 +1,23 @@
 import pandas as pd
 
 def adapt_house_input(data) -> pd.DataFrame:
+    if data.floors == 0:
+        floors_cat = "ground_floor"
+    elif data.floors == 1:
+        floors_cat = "one_floor"
+    elif data.floors == 2:
+        floors_cat = "two_floors"
+    elif data.floors > 2:
+        floors_cat = "more"
+    else:
+        floors_cat = "one_floor"
+
     return pd.DataFrame([{
         "area": data.areaHouse,
         "plot_area": data.areaPlot,
 
         "rooms": data.rooms,
-        "floors_in_building": data.floors,
+        "floors_in_building": floors_cat,
         "year_built": data.year,
 
         "building_type": data.buildType,
