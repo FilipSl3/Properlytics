@@ -5,6 +5,8 @@ import FlatForm from './pages/FlatForm';
 import HouseForm from './pages/HouseForm';
 import PlotForm from './pages/PlotForm';
 
+import ErrorPage from './pages/ErrorPage';
+
 function App() {
   return (
     <Router>
@@ -16,6 +18,56 @@ function App() {
             <Route path="/mieszkanie" element={<FlatForm />} />
             <Route path="/dom" element={<HouseForm />} />
             <Route path="/dzialka" element={<PlotForm />} />
+
+
+            {/* 403 - Brak dostępu */}
+            <Route
+              path="/403"
+              element={
+                <ErrorPage
+                  code="403"
+                  title="Dostęp zabroniony"
+                  message="Nie masz uprawnień do przeglądania tej strony. Skontaktuj się z administratorem, jeśli uważasz, że to błąd."
+                />
+              }
+            />
+
+            {/* 500 - Błąd serwera (Internal Server Error) */}
+            <Route
+              path="/500"
+              element={
+                <ErrorPage
+                  code="500"
+                  title="Błąd serwera"
+                  message="Coś poszło nie tak po naszej stronie. Nasz zespół techniczny już o tym wie. Spróbuj ponownie za chwilę."
+                />
+              }
+            />
+
+            {/* 503 - Serwer niedostępny (Service Unavailable) */}
+            <Route
+              path="/503"
+              element={
+                <ErrorPage
+                  code="503"
+                  title="Serwer niedostępny"
+                  message="Serwer jest tymczasowo niedostępny (np. trwa przerwa techniczna). Prosimy spróbować ponownie później."
+                />
+              }
+            />
+
+            {/* 404 - Nie znaleziono (Catch-all na końcu) */}
+            <Route
+              path="*"
+              element={
+                <ErrorPage
+                  code="404"
+                  title="Strona nie istnieje"
+                  message="Wygląda na to, że zabłądziłeś. Strona, której szukasz, została usunięta lub nigdy nie istniała."
+                />
+              }
+            />
+
           </Routes>
         </main>
 

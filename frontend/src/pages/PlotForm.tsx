@@ -35,7 +35,7 @@ const CITY_TO_PROVINCE: Record<string, string> = {
 
 export default function PlotForm() {
   const [formData, setFormData] = useState({
-    area: '1000',
+    area: '',
     type: 'building',
     locationType: 'suburban',
     city: 'Warszawa',
@@ -105,10 +105,12 @@ export default function PlotForm() {
       setPredictionData(response.data);
     } catch (err: any) {
       console.error("Błąd API:", err);
-      if (err.response && err.response.status === 422) {
-          setApiError("Błąd danych (422). Sprawdź formularz.");
+      if (err.response) {
+        setApiError(`Błąd serwera: ${err.response.status}. Sprawdź dane.`);
+      } else if (err.request) {
+        setApiError("Nie można połączyć się z serwerem. Upewnij się, że masz poprawne połączenie z Internetem.");
       } else {
-          setApiError("Wystąpił błąd podczas wyceny działki.");
+        setApiError("Wystąpił nieoczekiwany błąd aplikacji.");
       }
     } finally {
       setLoading(false);

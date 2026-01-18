@@ -34,11 +34,11 @@ const CITY_TO_PROVINCE: Record<string, string> = {
 
 export default function FlatForm() {
   const [formData, setFormData] = useState({
-    area: '0',
-    rooms: '0',
-    floor: '0',
-    totalFloors: '0',
-    year: '2000',
+    area: '',
+    rooms: '',
+    floor: '',
+    totalFloors: '',
+    year: '',
     buildType: 'block',
     material: 'brick',
     heating: 'district',
@@ -131,7 +131,13 @@ export default function FlatForm() {
       setPredictionData(response.data);
     } catch (err: any) {
       console.error("Błąd API:", err);
-      setApiError("Wystąpił błąd podczas wyceny. Sprawdź połączenie.");
+      if (err.response) {
+        setApiError(`Błąd serwera: ${err.response.status}. Sprawdź dane.`);
+      } else if (err.request) {
+        setApiError("Nie można połączyć się z serwerem. Upewnij się, że masz poprawne połączenie z Internetem.");
+      } else {
+        setApiError("Wystąpił nieoczekiwany błąd aplikacji.");
+      }
     } finally {
       setLoading(false);
     }
@@ -162,7 +168,7 @@ export default function FlatForm() {
 
             <div>
               <label className={labelClass}>Liczba pokoi</label>
-              <input type="number" name="rooms" value={formData.rooms} onChange={handleChange} className={getInputClass('rooms')} />
+              <input type="number" name="rooms" value={formData.rooms} onChange={handleChange} className={getInputClass('rooms')} placeholder="np. 1"/>
               {errors.rooms && <p className="text-red-500 text-xs mt-1">{errors.rooms}</p>}
             </div>
 
@@ -174,13 +180,13 @@ export default function FlatForm() {
 
             <div>
               <label className={labelClass}>Liczba pięter w budynku</label>
-              <input type="number" name="totalFloors" value={formData.totalFloors} onChange={handleChange} className={getInputClass('totalFloors')} />
+              <input type="number" name="totalFloors" value={formData.totalFloors} onChange={handleChange} className={getInputClass('totalFloors')} placeholder="np. 4"/>
                {errors.totalFloors && <p className="text-red-500 text-xs mt-1">{errors.totalFloors}</p>}
             </div>
 
             <div>
               <label className={labelClass}>Rok budowy</label>
-              <input type="number" name="year" value={formData.year} onChange={handleChange} className={getInputClass('year')} placeholder="np. 2010" />
+              <input type="number" name="year" value={formData.year} onChange={handleChange} className={getInputClass('year')} placeholder="np. 2026" />
               {errors.year && <p className="text-red-500 text-xs mt-1">{errors.year}</p>}
             </div>
 
