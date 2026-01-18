@@ -12,7 +12,7 @@ class HouseInput(BaseModel):
     constructionStatus: Literal['ready_to_use', 'to_completion', 'to_renovation', 'unfinished_close']
     market: Literal['primary', 'secondary']
     material: Literal['brick', 'wood', 'breezeblock', 'concrete', 'silikat']
-    roofType: Literal['tile', 'sheet', 'shingle', 'slate']
+    roofType: Literal['diagonal', 'flat', 'undulating']
 
     hasGarage: conint(ge=0, le=1)
     hasBasement: conint(ge=0, le=1)
@@ -20,7 +20,7 @@ class HouseInput(BaseModel):
     hasSewerage: conint(ge=0, le=1)
     isHardAccess: conint(ge=0, le=1)
 
-    fenceType: constr(min_length=0) = ''
+    fenceType: Literal['wire', 'metal', 'brick', 'wood', 'concrete', 'mixed', 'hedge', ''] = ''
     heatingType: constr(min_length=0) = ''
 
     city: constr(min_length=1)

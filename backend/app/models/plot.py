@@ -4,7 +4,7 @@ from typing import Literal
 class PlotInput(BaseModel):
     area: confloat(gt=0)
 
-    type: Literal['building', 'agricultural', 'recreational', 'investment', 'forest', 'habitat']
+    type: Literal['building', 'agricultural', 'agricultural_building', 'recreational', 'commercial', 'woodland', 'habitat']
     locationType: Literal['city', 'suburban', 'country']
 
     hasElectricity: conint(ge=0, le=1)

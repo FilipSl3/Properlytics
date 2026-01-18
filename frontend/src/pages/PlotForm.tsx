@@ -1,8 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from '../api';
+
+interface PredictionData {
+  cena: number;
+  price_min: number;
+  price_max: number;
+  shap_values: Record<string, number>;
+}
+
+const PROVINCES = [
+  "Dolnośląskie", "Kujawsko-pomorskie", "Lubelskie", "Lubuskie", "Łódzkie",
+  "Małopolskie", "Mazowieckie", "Opolskie", "Podkarpackie", "Podlaskie",
+  "Pomorskie", "Śląskie", "Świętokrzyskie", "Warmińsko-mazurskie", "Wielkopolskie", "Zachodniopomorskie"
+];
+
+const CITY_TO_PROVINCE: Record<string, string> = {
+  "warszawa": "Mazowieckie", "radom": "Mazowieckie", "płock": "Mazowieckie",
+  "kraków": "Małopolskie", "tarnów": "Małopolskie",
+  "łódź": "Łódzkie",
+  "wrocław": "Dolnośląskie", "wałbrzych": "Dolnośląskie",
+  "poznań": "Wielkopolskie",
+  "gdańsk": "Pomorskie", "gdynia": "Pomorskie", "sopot": "Pomorskie",
+  "szczecin": "Zachodniopomorskie",
+  "bydgoszcz": "Kujawsko-pomorskie", "toruń": "Kujawsko-pomorskie",
+  "lublin": "Lubelskie",
+  "katowice": "Śląskie", "częstochowa": "Śląskie", "gliwice": "Śląskie",
+  "białystok": "Podlaskie",
+  "rzeszów": "Podkarpackie",
+  "kielce": "Świętokrzyskie",
+  "olsztyn": "Warmińsko-mazurskie",
+  "opole": "Opolskie",
+  "zielona góra": "Lubuskie", "gorzów wielkopolski": "Lubuskie"
+};
 
 export default function PlotForm() {
   const [formData, setFormData] = useState({
-    area: '',
+    area: '1000',
     type: 'building',
     locationType: 'suburban',
     city: 'Warszawa',
@@ -17,6 +50,16 @@ export default function PlotForm() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [predictionData, setPredictionData] = useState<PredictionData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const cityLower = formData.city.trim().toLowerCase();
+    if (CITY_TO_PROVINCE[cityLower]) {
+      setFormData(prev => ({ ...prev, province: CITY_TO_PROVINCE[cityLower] }));
+    }
+  }, [formData.city]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -27,24 +70,48 @@ export default function PlotForm() {
       [name]: type === 'checkbox' ? checked : value
     }));
 
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+    if (predictionData) setPredictionData(null);
   };
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    if (!formData.area || Number(formData.area) <= 0) newErrors.area = "Wymagane";
+    const area = Number(formData.area);
+
+    if (!formData.area || area < 100) newErrors.area = "Min. 100 m²";
+    if (area > 1000000) newErrors.area = "Max. 100 ha (1 000 000 m²)";
+
     if (!formData.city.trim()) newErrors.city = "Wymagane";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validate()) {
-      console.log("Dane działki:", formData);
-      alert("Dane poprawne.");
+    if (!validate()) return;
+
+    setLoading(true);
+    setApiError(null);
+    setPredictionData(null);
+
+    const payload = {
+      ...formData,
+      area: Number(formData.area),
+    };
+
+    try {
+      const response = await api.post('/predict/plot', payload);
+      setPredictionData(response.data);
+    } catch (err: any) {
+      console.error("Błąd API:", err);
+      if (err.response && err.response.status === 422) {
+          setApiError("Błąd danych (422). Sprawdź formularz.");
+      } else {
+          setApiError("Wystąpił błąd podczas wyceny działki.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -70,16 +137,18 @@ export default function PlotForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className={labelClass}>Powierzchnia (m²)</label>
-              <input type="number" name="area" value={formData.area} onChange={handleChange} className={getInputClass('area')} step="1" />
+              <input type="number" name="area" value={formData.area} onChange={handleChange} className={getInputClass('area')} step="1" placeholder="np. 1500" />
+              {errors.area && <p className="text-red-500 text-xs mt-1">{errors.area}</p>}
             </div>
              <div>
               <label className={labelClass}>Typ Działki</label>
               <select name="type" value={formData.type} onChange={handleChange} className={getInputClass('type')}>
                 <option value="building">Budowlana</option>
                 <option value="agricultural">Rolna</option>
+                <option value="agricultural_building">Rolno-budowlana</option>
                 <option value="recreational">Rekreacyjna</option>
-                <option value="investment">Inwestycyjna</option>
-                <option value="forest">Leśna</option>
+                <option value="commercial">Inwestycyjna / Komercyjna</option>
+                <option value="woodland">Leśna</option>
                 <option value="habitat">Siedliskowa</option>
               </select>
             </div>
@@ -96,11 +165,16 @@ export default function PlotForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
              <div>
                <label className={labelClass}>Miejscowość</label>
-               <input type="text" name="city" value={formData.city} onChange={handleChange} className={getInputClass('city')} />
+               <input type="text" name="city" value={formData.city} onChange={handleChange} className={getInputClass('city')} placeholder="np. Warszawa" />
+               {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
             </div>
             <div>
                <label className={labelClass}>Województwo</label>
-               <input type="text" name="province" value={formData.province} onChange={handleChange} className={getInputClass('province')} />
+               <select name="province" value={formData.province} onChange={handleChange} className={getInputClass('province')}>
+                 {PROVINCES.map(prov => (
+                   <option key={prov} value={prov}>{prov}</option>
+                 ))}
+               </select>
             </div>
           </div>
 
@@ -134,8 +208,36 @@ export default function PlotForm() {
             </div>
           </div>
 
-          <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold py-4 rounded-xl hover:from-amber-600 hover:to-orange-700 transition shadow-lg text-lg">
-            Oblicz Wycenę Działki
+          <div className="space-y-6 pt-6 border-t border-gray-100">
+             {apiError && (
+                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-center font-medium">
+                  ⚠️ {apiError}
+                </div>
+             )}
+
+             {predictionData && !loading && (
+                <div className="animate-fade-in space-y-6">
+                  <div className="p-8 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl text-center shadow-md relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-amber-500"></div>
+                    <p className="text-amber-800 font-bold uppercase tracking-widest text-sm mb-3">
+                      Szacowana Wartość Działki
+                    </p>
+                    <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4">
+                        <span className="text-4xl md:text-5xl font-extrabold text-gray-900">
+                          {predictionData.price_min.toLocaleString('pl-PL', { maximumFractionDigits: 0 })}
+                        </span>
+                        <span className="text-2xl text-gray-400 font-light">—</span>
+                        <span className="text-4xl md:text-5xl font-extrabold text-amber-700">
+                          {predictionData.price_max.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} zł
+                        </span>
+                    </div>
+                  </div>
+                </div>
+             )}
+          </div>
+
+          <button type="submit" disabled={loading} className={`w-full text-white font-bold py-4 rounded-xl shadow-lg text-lg transition ${loading ? 'bg-gray-400 cursor-wait' : 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700'}`}>
+            {loading ? 'Obliczam wycenę...' : 'Oblicz Wycenę Działki'}
           </button>
         </form>
       </div>
