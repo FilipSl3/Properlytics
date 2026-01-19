@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import FlatForm from './pages/FlatForm';
 import HouseForm from './pages/HouseForm';
 import PlotForm from './pages/PlotForm';
+import FeatureImportanceChart from './components/FeatureImportanceChart';
 
 import ErrorPage from './pages/ErrorPage';
 

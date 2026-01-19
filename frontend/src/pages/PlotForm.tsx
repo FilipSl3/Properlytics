@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
+import FeatureImportanceChart from '../components/FeatureImportanceChart';
 
 interface PredictionData {
   cena: number;
@@ -115,6 +116,83 @@ export default function PlotForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getChartData = () => {
+    if (!predictionData?.shap_values) return [];
+
+    return Object.entries(predictionData.shap_values)
+      .filter(([key, value]) => {
+          const k = key.toLowerCase();
+
+          if (k.includes('area')) return true;
+
+          if (k.includes('electricity') && formData.hasElectricity) return true;
+          if (k.includes('water') && formData.hasWater) return true;
+          if (k.includes('gas') && formData.hasGas) return true;
+          if (k.includes('sewerage') && formData.hasSewerage) return true;
+          if ((k.includes('access') || k.includes('hard')) && formData.isHardAccess) return true;
+          if (k.includes('fence') && formData.hasFence) return true;
+
+          const selectionValues = [
+            formData.type,
+            formData.locationType,
+            formData.city,
+            formData.province
+          ].map(s => s.toLowerCase());
+
+          return selectionValues.some(selection => k.includes(selection));
+      })
+      .map(([key, value]) => {
+          let niceName = key;
+          const k = key.toLowerCase();
+
+          if (k.includes('area')) niceName = 'Powierzchnia działki';
+          
+          else if (k.includes('electricity')) niceName = 'Prąd';
+          else if (k.includes('water')) niceName = 'Woda';
+          else if (k.includes('gas')) niceName = 'Gaz';
+          else if (k.includes('sewerage')) niceName = 'Kanalizacja';
+          else if (k.includes('access') || k.includes('hard')) niceName = 'Dojazd utwardzony';
+          else if (k.includes('fence')) niceName = 'Ogrodzenie';
+
+          else if (k.includes('city')) niceName = `Lokalizacja: ${formData.city}`;
+          else if (k.includes('province')) niceName = `Woj.: ${formData.province}`;
+
+          else if (k.includes('type')) {
+              const types: Record<string, string> = { 
+                  building: 'Budowlana', 
+                  agricultural: 'Rolna', 
+                  agricultural_building: 'Rolno-budowlana',
+                  recreational: 'Rekreacyjna',
+                  commercial: 'Inwestycyjna',
+                  woodland: 'Leśna',
+                  habitat: 'Siedliskowa'
+              };
+
+              for (const [eng, pl] of Object.entries(types)) {
+                  if (k.includes(eng)) {
+                      niceName = `Typ: ${pl}`;
+                      break;
+                  }
+              }
+          }
+
+          else if (k.includes('location')) {
+              const locs: Record<string, string> = { city: 'Miejskie', suburban: 'Podmiejskie', country: 'Wiejskie' };
+              niceName = `Położenie: ${locs[formData.locationType] || formData.locationType}`;
+          }
+
+          return { name: niceName, value };
+      })
+      .reduce((acc, curr) => {
+          const existing = acc.find(item => item.name === curr.name);
+          if (existing) existing.value += curr.value;
+          else acc.push(curr);
+          return acc;
+      }, [] as { name: string, value: number }[])
+      .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+      .filter(item => Math.abs(item.value) > 50); 
   };
 
   const getInputClass = (fieldName: string) => `
@@ -233,6 +311,17 @@ export default function PlotForm() {
                           {predictionData.price_max.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} zł
                         </span>
                     </div>
+                  </div>
+
+                  {}
+                  {predictionData.shap_values && Object.keys(predictionData.shap_values).length > 0 && (
+                     <div className="mt-6">
+                        <FeatureImportanceChart data={getChartData()} />
+                     </div>
+                  )}
+
+                  <div className="text-center text-xs text-gray-400">
+                    Model wycenił działkę na podstawie cech terenu i mediów.
                   </div>
                 </div>
              )}

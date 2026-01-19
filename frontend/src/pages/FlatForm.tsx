@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
+import FeatureImportanceChart from '../components/FeatureImportanceChart'; 
 
 interface PredictionData {
   price_min: number;
   price_max: number;
-  components: Array<{ name: string; value: number }>;
+  shap_values: Record<string, number>;
 }
 
 const PROVINCES = [
@@ -141,6 +142,76 @@ export default function FlatForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getChartData = () => {
+    if (!predictionData?.shap_values) return [];
+
+    return Object.entries(predictionData.shap_values)
+      .filter(([key, value]) => {
+          const k = key.toLowerCase();
+
+          if (['area', 'rooms', 'floor', 'year'].some(x => k.includes(x))) return true;
+
+          if (k.includes('lift')) return true;
+
+          if ((k.includes('outdoor') || k.includes('balcony')) && formData.hasOutdoor) return true;
+          if ((k.includes('parking') || k.includes('garage')) && formData.hasParking) return true;
+
+          const selectionValues = [
+            formData.buildType,
+            formData.material, 
+            formData.heating, 
+            formData.constructionStatus,
+            formData.market,
+            formData.city,
+            formData.province,
+            formData.district 
+          ].map(s => s.toLowerCase());
+
+          return selectionValues.some(selection => k.includes(selection));
+      })
+      .map(([key, value]) => {
+          let niceName = key;
+          const k = key.toLowerCase();
+
+          if (k.includes('total')) niceName = 'Liczba pięter w budynku';
+          else if (k.includes('floor')) niceName = 'Piętro';
+          else if (k.includes('area')) niceName = 'Metraż';
+          else if (k.includes('rooms')) niceName = 'Liczba pokoi';
+          else if (k.includes('year')) niceName = 'Rok budowy';
+          
+          else if (k.includes('lift')) niceName = formData.hasLift ? 'Winda: Jest' : 'Winda: Brak';
+          else if (k.includes('outdoor') || k.includes('balcony')) niceName = 'Balkon / Ogród';
+          else if (k.includes('parking') || k.includes('garage')) niceName = 'Miejsce parkingowe';
+
+          else if (k.includes('market') && k.includes('secondary')) niceName = 'Rynek: Wtórny';
+          else if (k.includes('market') && k.includes('primary')) niceName = 'Rynek: Pierwotny';
+          
+          else if (k.includes('city')) niceName = `Lokalizacja: ${formData.city}`;
+          else if (k.includes('province')) niceName = `Woj.: ${formData.province}`;
+          
+          else if (k.includes('district')) niceName = `Dzielnica: ${formData.district}`; 
+
+          else if (k.includes('build')) {
+             const types: Record<string, string> = { block: 'Blok', tenement: 'Kamienica', apartment: 'Apartamentowiec', house: 'Dom wielorodzinny' };
+             niceName = `Typ: ${types[formData.buildType] || formData.buildType}`;
+          }
+          else if (k.includes('heating')) {
+              const heats: Record<string, string> = { district: 'Miejskie', gas: 'Gazowe', electric: 'Elektryczne', boiler: 'Kotłownia' };
+              niceName = `Ogrzewanie: ${heats[formData.heating] || formData.heating}`;
+          }
+
+          return { name: niceName, value };
+      })
+      .reduce((acc, curr) => {
+          const existing = acc.find(item => item.name === curr.name);
+          if (existing) existing.value += curr.value;
+          else acc.push(curr);
+          return acc;
+      }, [] as { name: string, value: number }[])
+      .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+      .filter(item => Math.abs(item.value) > 50); 
   };
 
   const getInputClass = (fieldName: string) => `
@@ -309,31 +380,17 @@ export default function FlatForm() {
                     </div>
                   </div>
 
-                  {predictionData.components.length > 0 ? (
-                    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                      <div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
-                        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                          📊 Co wpłynęło na wycenę?
-                        </h3>
-                      </div>
-
-                      <div className="divide-y divide-gray-100">
-                        {predictionData.components.map((comp, index) => (
-                          <div key={index} className="p-4 flex justify-between items-center hover:bg-gray-50 transition">
-                            <span className="text-gray-700 font-medium">{comp.name}</span>
-                            <div className={`flex items-center gap-2 font-bold ${comp.value > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                              {comp.value > 0 ? '+' : ''}
-                              {comp.value.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} zł
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-4 text-center text-gray-500 text-sm bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                      Standardowe parametry (brak czynników znacząco zmieniających bazową cenę).
-                    </div>
+                  {}
+                  {predictionData.shap_values && Object.keys(predictionData.shap_values).length > 0 && (
+                     <div className="mt-6">
+                        <FeatureImportanceChart data={getChartData()} />
+                     </div>
                   )}
+                  
+                  <div className="text-center text-xs text-gray-400">
+                    Model wycenił mieszkanie na podstawie kluczowych cech lokalnych.
+                  </div>
+
                 </div>
              )}
           </div>
