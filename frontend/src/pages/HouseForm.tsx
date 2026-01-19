@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
+import FeatureImportanceChart from '../components/FeatureImportanceChart'; // <--- 1. Importujemy Twój wykres
 
 interface PredictionData {
   cena: number;
@@ -13,6 +14,29 @@ const PROVINCES = [
   "Małopolskie", "Mazowieckie", "Opolskie", "Podkarpackie", "Podlaskie",
   "Pomorskie", "Śląskie", "Świętokrzyskie", "Warmińsko-mazurskie", "Wielkopolskie", "Zachodniopomorskie"
 ];
+
+// Tłumacz nazw technicznych (z API) na ludzkie (na Wykres)
+const FEATURE_TRANSLATIONS: Record<string, string> = {
+  areaHouse: "Metraż domu",
+  areaPlot: "Powierzchnia działki",
+  rooms: "Liczba pokoi",
+  floors: "Liczba pięter",
+  year: "Rok budowy",
+  city: "Lokalizacja (Miasto)",
+  province: "Województwo",
+  hasGarage: "Garaż",
+  hasBasement: "Piwnica",
+  hasGas: "Dostęp do gazu",
+  hasSewerage: "Kanalizacja",
+  isHardAccess: "Dojazd",
+  buildType: "Rodzaj zabudowy",
+  constructionStatus: "Stan wykończenia",
+  market: "Rynek",
+  material: "Materiał",
+  roofType: "Dach",
+  heatingType: "Ogrzewanie",
+  fenceType: "Ogrodzenie"
+};
 
 const CITY_TO_PROVINCE: Record<string, string> = {
   "warszawa": "Mazowieckie", "radom": "Mazowieckie", "płock": "Mazowieckie",
@@ -82,6 +106,7 @@ export default function HouseForm() {
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
+    // Ukrywamy stary wynik, gdy użytkownik zmienia dane
     if (predictionData) setPredictionData(null);
   };
 
@@ -174,6 +199,93 @@ export default function HouseForm() {
     }
   };
 
+  // --- Funkcja przygotowująca dane dla Wykresu ---
+ // --- ULEPSZONA Funkcja mapująca (Wersja 3.0 - Poprawiona kolejność) ---
+  const getChartData = () => {
+    if (!predictionData?.shap_values) return [];
+
+    return Object.entries(predictionData.shap_values)
+      .filter(([key, value]) => {
+          const k = key.toLowerCase();
+
+          // A. ZAWSZE pokazuj główne cechy liczbowe
+          if (['area', 'plot', 'rooms', 'year', 'floors'].some(x => k.includes(x))) return true;
+
+          // B. CHECKBOXY: Pokaż tylko zaznaczone
+          if (k.includes('garage') && formData.hasGarage) return true;
+          if (k.includes('basement') && formData.hasBasement) return true;
+          if (k.includes('gas') && formData.hasGas) return true;
+          if (k.includes('sewerage') && formData.hasSewerage) return true; 
+          if ((k.includes('access') || k.includes('hard')) && formData.isHardAccess) return true;
+
+          // C. DROPDOWNY: Pokaż jeśli pasują do wyboru
+          const selectionValues = [
+            formData.material, 
+            formData.roofType, 
+            formData.heatingType, 
+            formData.constructionStatus,
+            formData.market,
+            formData.city,
+            formData.province
+          ].map(s => s.toLowerCase());
+
+          return selectionValues.some(selection => k.includes(selection));
+      })
+      .map(([key, value]) => {
+          let niceName = key;
+          const k = key.toLowerCase();
+
+          // --- TUTAJ BYŁ BŁĄD - TERAZ USTALAMY SZTYWNĄ KOLEJNOŚĆ ---
+          
+          // 1. Najpierw sprawdzamy specyficzne przypadki (np. Działka przed Metrażem)
+          if (k.includes('plot')) {
+             niceName = 'Powierzchnia działki';
+          } 
+          else if (k.includes('area')) { 
+             niceName = 'Metraż domu'; // Dopiero jak wiemy, że to nie "plot", to to musi być dom
+          }
+          else if (k.includes('rooms')) niceName = 'Liczba pokoi';
+          else if (k.includes('floors')) niceName = 'Liczba pięter';
+          else if (k.includes('year')) niceName = 'Rok budowy';
+          else if (k.includes('garage')) niceName = 'Garaż';
+          else if (k.includes('basement')) niceName = 'Piwnica';
+          else if (k.includes('gas')) niceName = 'Gaz';
+          else if (k.includes('sewerage')) niceName = 'Kanalizacja';
+          else if (k.includes('access') || k.includes('hard')) niceName = 'Dojazd utwardzony';
+          else if (k.includes('market') && k.includes('secondary')) niceName = 'Rynek: Wtórny';
+          else if (k.includes('market') && k.includes('primary')) niceName = 'Rynek: Pierwotny';
+          else if (k.includes('construction')) niceName = 'Stan wykończenia';
+          
+          // 2. Obsługa dynamicznych nazw (Miasto, Materiał itp.)
+          else if (k.includes('city')) niceName = `Lokalizacja: ${formData.city}`;
+          else if (k.includes('province') || k.includes('region')) niceName = `Woj.: ${formData.province}`;
+          else if (k.includes('roof')) niceName = formData.roofType === 'flat' ? 'Dach: Płaski' : 'Dach: Skośny';
+          else if (k.includes('material')) {
+             const matMap: Record<string, string> = { brick: 'Cegła', wood: 'Drewno', concrete: 'Beton', breezeblock: 'Pustak', silikat: 'Silikat' };
+             niceName = `Materiał: ${matMap[formData.material] || formData.material}`;
+          }
+          else if (k.includes('heating')) {
+              const heatMap: Record<string, string> = { gas: 'Gazowe', heat_pump: 'Pompa ciepła', coal: 'Węglowe', electric: 'Elektryczne', fireplace: 'Kominek' };
+              niceName = `Ogrzewanie: ${heatMap[formData.heatingType] || formData.heatingType}`;
+          }
+
+          return { name: niceName, value };
+      })
+      // Agregacja - na wypadek gdyby nadal były duplikaty (sumujemy ich wartości)
+      .reduce((acc, curr) => {
+          const existing = acc.find(item => item.name === curr.name);
+          if (existing) {
+              existing.value += curr.value;
+          } else {
+              acc.push(curr);
+          }
+          return acc;
+      }, [] as { name: string, value: number }[])
+      .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+      .filter(item => Math.abs(item.value) > 50); 
+  };
+  // ------------------------------------------------
+
   const getInputClass = (fieldName: string) => `
     w-full p-3 border rounded-lg outline-none transition bg-white
     ${errors[fieldName] 
@@ -192,7 +304,7 @@ export default function HouseForm() {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-
+            {/* --- SEKCJA FORMULARZA (bez zmian) --- */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <label className={labelClass}>Powierzchnia Domu (m²)</label>
@@ -341,7 +453,9 @@ export default function HouseForm() {
              )}
 
              {predictionData && !loading && (
-                <div className="animate-fade-in space-y-6">
+                <div className="animate-fade-in space-y-8">
+                  
+                  {/* WIDOK CENY */}
                   <div className="p-8 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl text-center shadow-md relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-2 bg-green-500"></div>
                     <p className="text-green-800 font-bold uppercase tracking-widest text-sm mb-3">
@@ -357,6 +471,14 @@ export default function HouseForm() {
                         </span>
                     </div>
                   </div>
+
+                  {/* WIDOK WYKRESU (Analiza XAI) */}
+                  {/* Wyświetlamy go tylko, jeśli backend zwrócił shap_values */}
+                  {predictionData.shap_values && Object.keys(predictionData.shap_values).length > 0 && (
+                    <div className="mt-6">
+                         <FeatureImportanceChart data={getChartData()} />
+                    </div>
+                  )}
 
                   <div className="text-center text-xs text-gray-400">
                     Model wycenił nieruchomość na podstawie {Object.keys(predictionData.shap_values || {}).length} kluczowych cech.
