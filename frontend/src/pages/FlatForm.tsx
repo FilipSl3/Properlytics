@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
-import FeatureImportanceChart from '../components/FeatureImportanceChart'; // <--- Importujemy Wykres
+import FeatureImportanceChart from '../components/FeatureImportanceChart'; 
 
-// Aktualizujemy interfejs, żeby pasował do odpowiedzi backendu (shap_values)
 interface PredictionData {
   price_min: number;
   price_max: number;
@@ -145,8 +144,6 @@ export default function FlatForm() {
     }
   };
 
-  // --- LOGIKA WYKRESU DLA MIESZKAŃ ---
-  // --- POPRAWIONA Funkcja dla Mieszkań (dodano tłumaczenie Dzielnicy) ---
   const getChartData = () => {
     if (!predictionData?.shap_values) return [];
 
@@ -154,17 +151,13 @@ export default function FlatForm() {
       .filter(([key, value]) => {
           const k = key.toLowerCase();
 
-          // A. Zawsze pokazuj liczby
           if (['area', 'rooms', 'floor', 'year'].some(x => k.includes(x))) return true;
 
-          // B. Winda - zawsze
           if (k.includes('lift')) return true;
 
-          // C. Checkboxy
           if ((k.includes('outdoor') || k.includes('balcony')) && formData.hasOutdoor) return true;
           if ((k.includes('parking') || k.includes('garage')) && formData.hasParking) return true;
 
-          // D. Dropdowny i inputy
           const selectionValues = [
             formData.buildType,
             formData.material, 
@@ -173,7 +166,7 @@ export default function FlatForm() {
             formData.market,
             formData.city,
             formData.province,
-            formData.district // <--- Ważne: sprawdzamy też wpisaną dzielnicę
+            formData.district 
           ].map(s => s.toLowerCase());
 
           return selectionValues.some(selection => k.includes(selection));
@@ -198,9 +191,7 @@ export default function FlatForm() {
           else if (k.includes('city')) niceName = `Lokalizacja: ${formData.city}`;
           else if (k.includes('province')) niceName = `Woj.: ${formData.province}`;
           
-          // --- TUTAJ DODALIŚMY TŁUMACZENIE DZIELNICY ---
           else if (k.includes('district')) niceName = `Dzielnica: ${formData.district}`; 
-          // ---------------------------------------------
 
           else if (k.includes('build')) {
              const types: Record<string, string> = { block: 'Blok', tenement: 'Kamienica', apartment: 'Apartamentowiec', house: 'Dom wielorodzinny' };
@@ -222,7 +213,6 @@ export default function FlatForm() {
       .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
       .filter(item => Math.abs(item.value) > 50); 
   };
-  // -----------------------------------
 
   const getInputClass = (fieldName: string) => `
     w-full p-3 border rounded-lg outline-none transition bg-white
@@ -390,7 +380,7 @@ export default function FlatForm() {
                     </div>
                   </div>
 
-                  {/* WYKRES XAI DLA MIESZKAŃ */}
+                  {}
                   {predictionData.shap_values && Object.keys(predictionData.shap_values).length > 0 && (
                      <div className="mt-6">
                         <FeatureImportanceChart data={getChartData()} />

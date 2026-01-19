@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
-import FeatureImportanceChart from '../components/FeatureImportanceChart'; // <--- Import Wykresu
+import FeatureImportanceChart from '../components/FeatureImportanceChart';
 
 interface PredictionData {
   cena: number;
@@ -118,7 +118,6 @@ export default function PlotForm() {
     }
   };
 
-  // --- LOGIKA WYKRESU DLA DZIAŁEK ---
   const getChartData = () => {
     if (!predictionData?.shap_values) return [];
 
@@ -126,10 +125,8 @@ export default function PlotForm() {
       .filter(([key, value]) => {
           const k = key.toLowerCase();
 
-          // A. Zawsze pokazuj Powierzchnię
           if (k.includes('area')) return true;
 
-          // B. CHECKBOXY (Media): Pokaż jeśli zaznaczone
           if (k.includes('electricity') && formData.hasElectricity) return true;
           if (k.includes('water') && formData.hasWater) return true;
           if (k.includes('gas') && formData.hasGas) return true;
@@ -137,7 +134,6 @@ export default function PlotForm() {
           if ((k.includes('access') || k.includes('hard')) && formData.isHardAccess) return true;
           if (k.includes('fence') && formData.hasFence) return true;
 
-          // C. Dropdowny
           const selectionValues = [
             formData.type,
             formData.locationType,
@@ -151,7 +147,6 @@ export default function PlotForm() {
           let niceName = key;
           const k = key.toLowerCase();
 
-          // Tłumaczenia
           if (k.includes('area')) niceName = 'Powierzchnia działki';
           
           else if (k.includes('electricity')) niceName = 'Prąd';
@@ -164,7 +159,6 @@ export default function PlotForm() {
           else if (k.includes('city')) niceName = `Lokalizacja: ${formData.city}`;
           else if (k.includes('province')) niceName = `Woj.: ${formData.province}`;
 
-          // Tłumaczenie typów działek
           else if (k.includes('type')) {
               const types: Record<string, string> = { 
                   building: 'Budowlana', 
@@ -175,7 +169,7 @@ export default function PlotForm() {
                   woodland: 'Leśna',
                   habitat: 'Siedliskowa'
               };
-              // Szukamy pasującego typu
+
               for (const [eng, pl] of Object.entries(types)) {
                   if (k.includes(eng)) {
                       niceName = `Typ: ${pl}`;
@@ -183,7 +177,7 @@ export default function PlotForm() {
                   }
               }
           }
-          // Tłumaczenie położenia
+
           else if (k.includes('location')) {
               const locs: Record<string, string> = { city: 'Miejskie', suburban: 'Podmiejskie', country: 'Wiejskie' };
               niceName = `Położenie: ${locs[formData.locationType] || formData.locationType}`;
@@ -200,7 +194,6 @@ export default function PlotForm() {
       .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
       .filter(item => Math.abs(item.value) > 50); 
   };
-  // -----------------------------------
 
   const getInputClass = (fieldName: string) => `
     w-full p-3 border rounded-lg outline-none transition bg-white
@@ -320,7 +313,7 @@ export default function PlotForm() {
                     </div>
                   </div>
 
-                  {/* WYKRES XAI DLA DZIAŁEK */}
+                  {}
                   {predictionData.shap_values && Object.keys(predictionData.shap_values).length > 0 && (
                      <div className="mt-6">
                         <FeatureImportanceChart data={getChartData()} />
