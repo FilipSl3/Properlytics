@@ -16,14 +16,12 @@ interface ChartProps {
 }
 
 const FeatureImportanceChart: React.FC<ChartProps> = ({ data }) => {
-  // Zabezpieczenie przed pustymi danymi
+  
   if (!data || data.length === 0) {
     return <div className="text-center text-gray-400 p-4">Brak danych do analizy XAI</div>;
   }
 
-  // Obliczamy wysokość wykresu dynamicznie: 
-  // np. 50 pikseli na każdy słupek + 80 pikseli zapasu na nagłówek/marginesy.
-  // Dzięki temu wykres się "rozciągnie" zamiast ściskać słupki.
+
   const chartHeight = data.length * 50 + 60;
 
   return (
@@ -32,7 +30,7 @@ const FeatureImportanceChart: React.FC<ChartProps> = ({ data }) => {
         Dlaczego taka cena? (Analiza XAI)
       </h3>
       
-      {/* Kontener musi mieć określoną wysokość, tutaj wyliczoną dynamicznie */}
+      {}
       <div style={{ height: `${chartHeight}px`, width: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -42,24 +40,24 @@ const FeatureImportanceChart: React.FC<ChartProps> = ({ data }) => {
           >
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
             
-            {/* Oś X (wartości) - ukryta, bo mamy etykiety w tooltipie, ale typ musi być number */}
+            {}
             <XAxis type="number" hide />
             
-            {/* Oś Y (kategorie) - zwiększona szerokość dla długich nazw */}
+            {}
             <YAxis 
               dataKey="name" 
               type="category" 
               width={160}
               tick={{ fontSize: 12, fill: '#475569' }}
-              interval={0} // Pokazuj wszystkie etykiety
+              interval={0} 
             />
             
             <Tooltip 
             cursor={{ fill: '#f8fafc' }}
             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-            // Zmiana: (value: number) -> (value: any)
+            
             formatter={(value: any) => {
-              // Dla pewności rzutujemy na number, choć w Twoim przypadku to zawsze będzie liczba
+           
               const val = Number(value); 
               return [
                 <span key="val" className={val > 0 ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
@@ -70,7 +68,7 @@ const FeatureImportanceChart: React.FC<ChartProps> = ({ data }) => {
             }}
           />
             
-            {/* Linia środkowa (zero) */}
+            {}
             <ReferenceLine x={0} stroke="#94a3b8" />
 
             <Bar dataKey="value" barSize={24} radius={[4, 4, 4, 4]}>
