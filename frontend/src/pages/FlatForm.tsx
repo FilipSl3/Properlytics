@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import api from '../api';
 import FeatureImportanceChart from '../components/FeatureImportanceChart'; 
@@ -6,6 +8,25 @@ interface PredictionData {
   price_min: number;
   price_max: number;
   shap_values: Record<string, number>;
+}
+
+interface FormData {
+  area: string | number;
+  rooms: string | number;
+  floor: string | number;
+  totalFloors: string | number;
+  year: string | number;
+  buildType: string;
+  material: string;
+  heating: string;
+  market: string;
+  constructionStatus: string;
+  city: string;
+  district: string;
+  province: string;
+  hasLift: boolean;
+  hasOutdoor: boolean;
+  hasParking: boolean;
 }
 
 const PROVINCES = [
@@ -34,7 +55,7 @@ const CITY_TO_PROVINCE: Record<string, string> = {
 };
 
 export default function FlatForm() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     area: '',
     rooms: '',
     floor: '',
@@ -67,9 +88,14 @@ export default function FlatForm() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
+    
+    const isCheckbox = type === 'checkbox';
+    const checked = isCheckbox ? (e.target as HTMLInputElement).checked : false;
 
-    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    setFormData(prev => ({ 
+      ...prev, 
+      [name as keyof FormData]: isCheckbox ? checked : value 
+    }));
 
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
     if (predictionData) setPredictionData(null);
@@ -144,17 +170,17 @@ export default function FlatForm() {
     }
   };
 
+  // --- POPRAWIONA FUNKCJA TŁUMACZĄCA ---
   const getChartData = () => {
     if (!predictionData?.shap_values) return [];
 
     return Object.entries(predictionData.shap_values)
-      .filter(([key, value]) => {
+      .filter(([key]) => {
           const k = key.toLowerCase();
 
+          // Filtrowanie kluczowych cech
           if (['area', 'rooms', 'floor', 'year'].some(x => k.includes(x))) return true;
-
-          if (k.includes('lift')) return true;
-
+          if (k.includes('lift') || k.includes('elevator')) return true;
           if ((k.includes('outdoor') || k.includes('balcony')) && formData.hasOutdoor) return true;
           if ((k.includes('parking') || k.includes('garage')) && formData.hasParking) return true;
 
@@ -167,7 +193,7 @@ export default function FlatForm() {
             formData.city,
             formData.province,
             formData.district 
-          ].map(s => s.toLowerCase());
+          ].map(s => s.toString().toLowerCase());
 
           return selectionValues.some(selection => k.includes(selection));
       })
@@ -175,13 +201,17 @@ export default function FlatForm() {
           let niceName = key;
           const k = key.toLowerCase();
 
+          // TŁUMACZENIA NAZW (XAI Labels)
+
           if (k.includes('total')) niceName = 'Liczba pięter w budynku';
           else if (k.includes('floor')) niceName = 'Piętro';
           else if (k.includes('area')) niceName = 'Metraż';
           else if (k.includes('rooms')) niceName = 'Liczba pokoi';
           else if (k.includes('year')) niceName = 'Rok budowy';
           
-          else if (k.includes('lift')) niceName = formData.hasLift ? 'Winda: Jest' : 'Winda: Brak';
+          // Tłumaczenie windy (elevator/lift)
+          else if (k.includes('lift') || k.includes('elevator')) niceName = 'Winda';
+          
           else if (k.includes('outdoor') || k.includes('balcony')) niceName = 'Balkon / Ogród';
           else if (k.includes('parking') || k.includes('garage')) niceName = 'Miejsce parkingowe';
 
@@ -189,13 +219,23 @@ export default function FlatForm() {
           else if (k.includes('market') && k.includes('primary')) niceName = 'Rynek: Pierwotny';
           
           else if (k.includes('city')) niceName = `Lokalizacja: ${formData.city}`;
-          else if (k.includes('province')) niceName = `Woj.: ${formData.province}`;
+          else if (k.includes('province') || k.includes('region')) niceName = `Woj.: ${formData.province}`;
           
-          else if (k.includes('district')) niceName = `Dzielnica: ${formData.district}`; 
+          else if (k.includes('district')) niceName = formData.district ? `Dzielnica: ${formData.district}` : 'Dzielnica'; 
+
+          // Tłumaczenie Stanu Wykończenia (construction / finishing)
+          else if (k.includes('finish') || k.includes('construction')) {
+              if (k.includes('ready') || k.includes('use')) niceName = 'Stan: Do zamieszkania';
+              else if (k.includes('completion') || k.includes('develop')) niceName = 'Stan: Do wykończenia';
+              else if (k.includes('renovate') || k.includes('renovation')) niceName = 'Stan: Do remontu';
+              else niceName = 'Stan wykończenia';
+          }
 
           else if (k.includes('build')) {
-             const types: Record<string, string> = { block: 'Blok', tenement: 'Kamienica', apartment: 'Apartamentowiec', house: 'Dom wielorodzinny' };
-             niceName = `Typ: ${types[formData.buildType] || formData.buildType}`;
+              const types: Record<string, string> = { block: 'Blok', tenement: 'Kamienica', apartment: 'Apartamentowiec', house: 'Dom wielorodzinny' };
+              // Szukamy pasującego typu w kluczu lub bierzemy z formularza
+              const foundType = Object.keys(types).find(t => k.includes(t));
+              niceName = `Typ: ${foundType ? types[foundType] : types[formData.buildType] || 'Inny'}`;
           }
           else if (k.includes('heating')) {
               const heats: Record<string, string> = { district: 'Miejskie', gas: 'Gazowe', electric: 'Elektryczne', boiler: 'Kotłownia' };
@@ -380,11 +420,10 @@ export default function FlatForm() {
                     </div>
                   </div>
 
-                  {}
                   {predictionData.shap_values && Object.keys(predictionData.shap_values).length > 0 && (
-                     <div className="mt-6">
-                        <FeatureImportanceChart data={getChartData()} />
-                     </div>
+                      <div className="mt-6">
+                         <FeatureImportanceChart data={getChartData()} />
+                      </div>
                   )}
                   
                   <div className="text-center text-xs text-gray-400">

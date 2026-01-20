@@ -1,12 +1,31 @@
+'use client'; 
+
 import { useState, useEffect } from 'react';
 import api from '../api';
 import FeatureImportanceChart from '../components/FeatureImportanceChart';
+
+
 
 interface PredictionData {
   cena: number;
   price_min: number;
   price_max: number;
   shap_values: Record<string, number>;
+}
+
+
+interface FormData {
+  area: string | number;
+  type: string;
+  locationType: string;
+  city: string;
+  province: string;
+  hasElectricity: boolean;
+  hasWater: boolean;
+  hasGas: boolean;
+  hasSewerage: boolean;
+  isHardAccess: boolean;
+  hasFence: boolean;
 }
 
 const PROVINCES = [
@@ -35,13 +54,12 @@ const CITY_TO_PROVINCE: Record<string, string> = {
 };
 
 export default function PlotForm() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     area: '',
     type: 'building',
     locationType: 'suburban',
     city: 'Warszawa',
     province: 'Mazowieckie',
-
     hasElectricity: false,
     hasWater: false,
     hasGas: false,
@@ -55,20 +73,26 @@ export default function PlotForm() {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
+ 
   useEffect(() => {
-    const cityLower = formData.city.trim().toLowerCase();
+    const cityLower = formData.city.toString().trim().toLowerCase();
     if (CITY_TO_PROVINCE[cityLower]) {
       setFormData(prev => ({ ...prev, province: CITY_TO_PROVINCE[cityLower] }));
     }
   }, [formData.city]);
 
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
+    
+    
+    const isCheckbox = type === 'checkbox';
+    const checked = isCheckbox ? (e.target as HTMLInputElement).checked : false;
 
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      
+      [name as keyof FormData]: isCheckbox ? checked : value
     }));
 
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
@@ -98,7 +122,7 @@ export default function PlotForm() {
 
     const payload = {
       ...formData,
-      area: Number(formData.area),
+      area: Number(formData.area), 
     };
 
     try {
@@ -109,7 +133,7 @@ export default function PlotForm() {
       if (err.response) {
         setApiError(`Błąd serwera: ${err.response.status}. Sprawdź dane.`);
       } else if (err.request) {
-        setApiError("Nie można połączyć się z serwerem. Upewnij się, że masz poprawne połączenie z Internetem.");
+        setApiError("Nie można połączyć się z serwerem. Sprawdź łącze internetowe.");
       } else {
         setApiError("Wystąpił nieoczekiwany błąd aplikacji.");
       }
@@ -122,11 +146,11 @@ export default function PlotForm() {
     if (!predictionData?.shap_values) return [];
 
     return Object.entries(predictionData.shap_values)
-      .filter(([key, value]) => {
+      .filter(([key]) => {
           const k = key.toLowerCase();
 
+          
           if (k.includes('area')) return true;
-
           if (k.includes('electricity') && formData.hasElectricity) return true;
           if (k.includes('water') && formData.hasWater) return true;
           if (k.includes('gas') && formData.hasGas) return true;
@@ -139,7 +163,7 @@ export default function PlotForm() {
             formData.locationType,
             formData.city,
             formData.province
-          ].map(s => s.toLowerCase());
+          ].map(s => s.toString().toLowerCase());
 
           return selectionValues.some(selection => k.includes(selection));
       })
@@ -147,18 +171,16 @@ export default function PlotForm() {
           let niceName = key;
           const k = key.toLowerCase();
 
-          if (k.includes('area')) niceName = 'Powierzchnia działki';
           
+          if (k.includes('area')) niceName = 'Powierzchnia działki';
           else if (k.includes('electricity')) niceName = 'Prąd';
           else if (k.includes('water')) niceName = 'Woda';
           else if (k.includes('gas')) niceName = 'Gaz';
           else if (k.includes('sewerage')) niceName = 'Kanalizacja';
           else if (k.includes('access') || k.includes('hard')) niceName = 'Dojazd utwardzony';
           else if (k.includes('fence')) niceName = 'Ogrodzenie';
-
           else if (k.includes('city')) niceName = `Lokalizacja: ${formData.city}`;
           else if (k.includes('province')) niceName = `Woj.: ${formData.province}`;
-
           else if (k.includes('type')) {
               const types: Record<string, string> = { 
                   building: 'Budowlana', 
@@ -169,7 +191,6 @@ export default function PlotForm() {
                   woodland: 'Leśna',
                   habitat: 'Siedliskowa'
               };
-
               for (const [eng, pl] of Object.entries(types)) {
                   if (k.includes(eng)) {
                       niceName = `Typ: ${pl}`;
@@ -177,7 +198,6 @@ export default function PlotForm() {
                   }
               }
           }
-
           else if (k.includes('location')) {
               const locs: Record<string, string> = { city: 'Miejskie', suburban: 'Podmiejskie', country: 'Wiejskie' };
               niceName = `Położenie: ${locs[formData.locationType] || formData.locationType}`;
@@ -313,11 +333,10 @@ export default function PlotForm() {
                     </div>
                   </div>
 
-                  {}
                   {predictionData.shap_values && Object.keys(predictionData.shap_values).length > 0 && (
-                     <div className="mt-6">
-                        <FeatureImportanceChart data={getChartData()} />
-                     </div>
+                      <div className="mt-6">
+                         <FeatureImportanceChart data={getChartData()} />
+                      </div>
                   )}
 
                   <div className="text-center text-xs text-gray-400">

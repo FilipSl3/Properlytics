@@ -1,6 +1,10 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import api from '../api';
 import FeatureImportanceChart from '../components/FeatureImportanceChart';
+
+
 
 interface PredictionData {
   cena: number;
@@ -9,33 +13,34 @@ interface PredictionData {
   shap_values: Record<string, number>;
 }
 
+
+interface FormData {
+  areaHouse: string | number;
+  areaPlot: string | number;
+  rooms: string | number;
+  buildType: string;
+  constructionStatus: string;
+  market: string;
+  floors: string | number;
+  year: string | number;
+  material: string;
+  roofType: string;
+  city: string;
+  province: string;
+  hasGarage: boolean;
+  hasBasement: boolean;
+  hasGas: boolean;
+  hasSewerage: boolean;
+  isHardAccess: boolean;
+  fenceType: string;
+  heatingType: string;
+}
+
 const PROVINCES = [
   "Dolnośląskie", "Kujawsko-pomorskie", "Lubelskie", "Lubuskie", "Łódzkie",
   "Małopolskie", "Mazowieckie", "Opolskie", "Podkarpackie", "Podlaskie",
   "Pomorskie", "Śląskie", "Świętokrzyskie", "Warmińsko-mazurskie", "Wielkopolskie", "Zachodniopomorskie"
 ];
-
-const FEATURE_TRANSLATIONS: Record<string, string> = {
-  areaHouse: "Metraż domu",
-  areaPlot: "Powierzchnia działki",
-  rooms: "Liczba pokoi",
-  floors: "Liczba pięter",
-  year: "Rok budowy",
-  city: "Lokalizacja (Miasto)",
-  province: "Województwo",
-  hasGarage: "Garaż",
-  hasBasement: "Piwnica",
-  hasGas: "Dostęp do gazu",
-  hasSewerage: "Kanalizacja",
-  isHardAccess: "Dojazd",
-  buildType: "Rodzaj zabudowy",
-  constructionStatus: "Stan wykończenia",
-  market: "Rynek",
-  material: "Materiał",
-  roofType: "Dach",
-  heatingType: "Ogrzewanie",
-  fenceType: "Ogrodzenie"
-};
 
 const CITY_TO_PROVINCE: Record<string, string> = {
   "warszawa": "Mazowieckie", "radom": "Mazowieckie", "płock": "Mazowieckie",
@@ -57,7 +62,7 @@ const CITY_TO_PROVINCE: Record<string, string> = {
 };
 
 export default function HouseForm() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     areaHouse: '',
     areaPlot: '',
     rooms: '',
@@ -93,13 +98,19 @@ export default function HouseForm() {
     }
   }, [formData.city]);
 
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
+    
+    
+    const isCheckbox = type === 'checkbox';
+    
+    const checked = isCheckbox ? (e.target as HTMLInputElement).checked : false;
 
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      
+      [name as keyof FormData]: isCheckbox ? checked : value
     }));
 
     if (errors[name]) {
@@ -132,6 +143,7 @@ export default function HouseForm() {
     } else if (areaP > 200000) {
       newErrors.areaPlot = "Maksymalnie 200 000 m² (20 ha)";
     } else {
+        
         const estimatedFootprint = areaH / (floors === 0 ? 1 : floors + 1);
         if (estimatedFootprint > areaP) {
             newErrors.areaPlot = "Działka jest mniejsza niż podstawa domu!";
@@ -174,11 +186,6 @@ export default function HouseForm() {
       rooms: Number(formData.rooms),
       floors: Number(formData.floors),
       year: Number(formData.year),
-      hasGarage: formData.hasGarage,
-      hasBasement: formData.hasBasement,
-      hasGas: formData.hasGas,
-      hasSewerage: formData.hasSewerage,
-      isHardAccess: formData.isHardAccess,
     };
 
     try {
@@ -198,15 +205,13 @@ export default function HouseForm() {
     }
   };
 
- 
   const getChartData = () => {
     if (!predictionData?.shap_values) return [];
 
     return Object.entries(predictionData.shap_values)
-      .filter(([key, value]) => {
+      .filter(([key]) => {
           const k = key.toLowerCase();
 
-       
           if (['area', 'plot', 'rooms', 'year', 'floors'].some(x => k.includes(x))) return true;
 
           if (k.includes('garage') && formData.hasGarage) return true;
@@ -294,7 +299,7 @@ export default function HouseForm() {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-            {}
+            
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <label className={labelClass}>Powierzchnia Domu (m²)</label>
@@ -445,7 +450,6 @@ export default function HouseForm() {
              {predictionData && !loading && (
                 <div className="animate-fade-in space-y-8">
                   
-                  {}
                   <div className="p-8 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl text-center shadow-md relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-2 bg-green-500"></div>
                     <p className="text-green-800 font-bold uppercase tracking-widest text-sm mb-3">
@@ -462,8 +466,6 @@ export default function HouseForm() {
                     </div>
                   </div>
 
-                  {}
-                  {}
                   {predictionData.shap_values && Object.keys(predictionData.shap_values).length > 0 && (
                     <div className="mt-6">
                          <FeatureImportanceChart data={getChartData()} />
