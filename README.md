@@ -54,6 +54,7 @@ docker compose up --build
 Aplikacja będzie dostępna pod adresem:
 
 *  http://localhost:5173
+*  http://localhost:5173/admin
 
 ## 📸 Zrzuty ekranu
 
@@ -69,6 +70,8 @@ Aplikacja będzie dostępna pod adresem:
 ### Formularz wyceny działki
 ![Formularz wyceny działki](Screenshots/plot_form.png)
 
+### Przycisk ponownego uczenia modeli w panelu admina
+![Przycisk ponownego uczenia modeli w panelu admina](Screenshots/admin.png)
 
 ## 👥 Zespół Realizujący
 
