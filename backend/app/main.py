@@ -11,6 +11,7 @@ from app.models.plot import PlotInput
 import pandas as pd
 from ml.model_loader import ModelRegistry
 import warnings
+import subprocess
 
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
@@ -418,3 +419,15 @@ def predict_plot(data: PlotInput):
         "shap_values": shap_values,
         "type": "plot"
     }
+@app.post("/admin/retrain")
+def retrain_models():
+    run_retraining()
+    return {"status": "Modele wytrenowane i załadowane ponownie"}
+
+
+def run_retraining():
+    subprocess.run(["python", "ml/train_flats.py"], check=True)
+    subprocess.run(["python", "ml/train_houses.py"], check=True)
+    subprocess.run(["python", "ml/train_plots.py"], check=True)
+
+    load_models()

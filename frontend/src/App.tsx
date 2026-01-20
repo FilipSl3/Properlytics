@@ -5,6 +5,7 @@ import FlatForm from './pages/FlatForm';
 import HouseForm from './pages/HouseForm';
 import PlotForm from './pages/PlotForm';
 import FeatureImportanceChart from './components/FeatureImportanceChart';
+import Admin from "./pages/Admin";
 
 import ErrorPage from './pages/ErrorPage';
 
@@ -19,6 +20,8 @@ function App() {
             <Route path="/mieszkanie" element={<FlatForm />} />
             <Route path="/dom" element={<HouseForm />} />
             <Route path="/dzialka" element={<PlotForm />} />
+	    <Route path="/admin" element={<Admin />} />
+
 
 
             {/* 403 - Brak dostępu */}
