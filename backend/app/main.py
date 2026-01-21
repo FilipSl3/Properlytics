@@ -408,7 +408,7 @@ def predict_plot(data: PlotInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    margin = 0.10
+    margin = 0.05
     price_min = round(cena * (1 - margin), 2)
     price_max = round(cena * (1 + margin), 2)
 
