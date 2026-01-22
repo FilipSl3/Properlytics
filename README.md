@@ -18,6 +18,7 @@ Kluczową innowacją systemu jest moduł **Interpretowalności (XAI)**. Aplikacj
 * **Explainable AI (SHAP):** Interaktywne wykresy pokazujące pozytywny (zielony) i negatywny (czerwony) wpływ cech na cenę względem średniej rynkowej.
 * **Predykcja w czasie rzeczywistym:** Szybka komunikacja z modelem Machine Learning poprzez API.
 * **Walidacja danych:** Wielopoziomowa walidacja formularzy (Frontend + Pydantic na Backendzie).
+* **Panel Administratora:** Możliwość ręcznego przetrenowania modeli (retraining) na żądanie, co pozwala na aktualizację wycen w oparciu o nowe dane rynkowe.
 
 ## 🛠️ Stos Technologiczny
 
@@ -51,10 +52,11 @@ docker compose up --build
 
 ### 🌍 Dostęp do aplikacji
 
-Aplikacja będzie dostępna pod adresem:
+Aplikacja będzie dostępna pod adresami:
 
 *  http://localhost:5173
 *  http://localhost:5173/admin
+*  http://localhost:8000/docs
 
 ## 📸 Zrzuty ekranu
 
