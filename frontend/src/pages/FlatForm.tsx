@@ -170,7 +170,6 @@ export default function FlatForm() {
     }
   };
 
-  // --- POPRAWIONA FUNKCJA TŁUMACZĄCA ---
   const getChartData = () => {
     if (!predictionData?.shap_values) return [];
 
@@ -178,7 +177,6 @@ export default function FlatForm() {
       .filter(([key]) => {
           const k = key.toLowerCase();
 
-          // Filtrowanie kluczowych cech
           if (['area', 'rooms', 'floor', 'year'].some(x => k.includes(x))) return true;
           if (k.includes('lift') || k.includes('elevator')) return true;
           if ((k.includes('outdoor') || k.includes('balcony')) && formData.hasOutdoor) return true;
@@ -193,7 +191,9 @@ export default function FlatForm() {
             formData.city,
             formData.province,
             formData.district 
-          ].map(s => s.toString().toLowerCase());
+          ]
+          .filter(val => val !== '' && val !== null && val !== undefined)
+          .map(s => s.toString().toLowerCase());
 
           return selectionValues.some(selection => k.includes(selection));
       })
@@ -201,15 +201,12 @@ export default function FlatForm() {
           let niceName = key;
           const k = key.toLowerCase();
 
-          // TŁUMACZENIA NAZW (XAI Labels)
-
           if (k.includes('total')) niceName = 'Liczba pięter w budynku';
           else if (k.includes('floor')) niceName = 'Piętro';
           else if (k.includes('area')) niceName = 'Metraż';
           else if (k.includes('rooms')) niceName = 'Liczba pokoi';
           else if (k.includes('year')) niceName = 'Rok budowy';
           
-          // Tłumaczenie windy (elevator/lift)
           else if (k.includes('lift') || k.includes('elevator')) niceName = 'Winda';
           
           else if (k.includes('outdoor') || k.includes('balcony')) niceName = 'Balkon / Ogród';
@@ -223,7 +220,6 @@ export default function FlatForm() {
           
           else if (k.includes('district')) niceName = formData.district ? `Dzielnica: ${formData.district}` : 'Dzielnica'; 
 
-          // Tłumaczenie Stanu Wykończenia (construction / finishing)
           else if (k.includes('finish') || k.includes('construction')) {
               if (k.includes('ready') || k.includes('use')) niceName = 'Stan: Do zamieszkania';
               else if (k.includes('completion') || k.includes('develop')) niceName = 'Stan: Do wykończenia';
@@ -233,7 +229,6 @@ export default function FlatForm() {
 
           else if (k.includes('build')) {
               const types: Record<string, string> = { block: 'Blok', tenement: 'Kamienica', apartment: 'Apartamentowiec', house: 'Dom wielorodzinny' };
-              // Szukamy pasującego typu w kluczu lub bierzemy z formularza
               const foundType = Object.keys(types).find(t => k.includes(t));
               niceName = `Typ: ${foundType ? types[foundType] : types[formData.buildType] || 'Inny'}`;
           }
@@ -350,12 +345,12 @@ export default function FlatForm() {
             <div>
                <label className={labelClass}>Miejscowość</label>
                <input
-                  type="text"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleChange}
-                  className={getInputClass('city')}
-                  placeholder="np. Warszawa"
+                 type="text"
+                 name="city"
+                 value={formData.city}
+                 onChange={handleChange}
+                 className={getInputClass('city')}
+                 placeholder="np. Warszawa"
                />
                {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
             </div>
