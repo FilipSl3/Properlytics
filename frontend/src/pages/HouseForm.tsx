@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../api';
 import FeatureImportanceChart from '../components/FeatureImportanceChart';
-
-
+import PublishListingPanel from '../components/PublishListingPanel';
+import { LISTING_ENDPOINTS } from './listings/listingUtils';
 
 interface PredictionData {
   cena: number;
@@ -12,7 +12,6 @@ interface PredictionData {
   price_max: number;
   shap_values: Record<string, number>;
 }
-
 
 interface FormData {
   areaHouse: string | number;
@@ -98,25 +97,18 @@ export default function HouseForm() {
     }
   }, [formData.city]);
 
-  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
-    
+
     const isCheckbox = type === 'checkbox';
-    
     const checked = isCheckbox ? (e.target as HTMLInputElement).checked : false;
 
     setFormData(prev => ({
       ...prev,
-      
       [name as keyof FormData]: isCheckbox ? checked : value
     }));
 
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
     if (predictionData) setPredictionData(null);
   };
 
@@ -129,35 +121,23 @@ export default function HouseForm() {
     const rooms = Number(formData.rooms);
     const floors = Number(formData.floors);
 
-    if (!formData.areaHouse || areaH < 15) {
-      newErrors.areaHouse = "Dom musi mieć min. 15 m²";
-    } else if (areaH > 1500) {
-      newErrors.areaHouse = "Maksymalna powierzchnia to 1500 m²";
-    }
+    if (!formData.areaHouse || areaH < 15) newErrors.areaHouse = "Dom musi mieć min. 15 m²";
+    else if (areaH > 1500) newErrors.areaHouse = "Maksymalna powierzchnia to 1500 m²";
 
     if (floors < 0) newErrors.floors = "Liczba pięter nie może być ujemna";
     if (floors > 4) newErrors.floors = "Maksymalnie 4 piętra dla domu jednorodzinnego";
 
-    if (!formData.areaPlot || areaP < 1) {
-      newErrors.areaPlot = "Wymagane";
-    } else if (areaP > 200000) {
-      newErrors.areaPlot = "Maksymalnie 200 000 m² (20 ha)";
-    } else {
-        
-        const estimatedFootprint = areaH / (floors === 0 ? 1 : floors + 1);
-        if (estimatedFootprint > areaP) {
-            newErrors.areaPlot = "Działka jest mniejsza niż podstawa domu!";
-        }
+    if (!formData.areaPlot || areaP < 1) newErrors.areaPlot = "Wymagane";
+    else if (areaP > 200000) newErrors.areaPlot = "Maksymalnie 200 000 m² (20 ha)";
+    else {
+      const estimatedFootprint = areaH / (floors === 0 ? 1 : floors + 1);
+      if (estimatedFootprint > areaP) newErrors.areaPlot = "Działka jest mniejsza niż podstawa domu!";
     }
 
-    if (!formData.rooms || rooms < 1) {
-      newErrors.rooms = "Min. 1 pokój";
-    } else if (rooms > 30) {
-      newErrors.rooms = "Maks. 30 pokoi";
-    } else {
-        if (areaH / rooms < 6) {
-             newErrors.rooms = "Zbyt wiele pokoi na taki metraż";
-        }
+    if (!formData.rooms || rooms < 1) newErrors.rooms = "Min. 1 pokój";
+    else if (rooms > 30) newErrors.rooms = "Maks. 30 pokoi";
+    else {
+      if (areaH / rooms < 6) newErrors.rooms = "Zbyt wiele pokoi na taki metraż";
     }
 
     const year = Number(formData.year);
@@ -193,13 +173,9 @@ export default function HouseForm() {
       setPredictionData(response.data);
     } catch (err: any) {
       console.error("Błąd API:", err);
-      if (err.response) {
-        setApiError(`Błąd serwera: ${err.response.status}. Sprawdź dane.`);
-      } else if (err.request) {
-        setApiError("Nie można połączyć się z serwerem. Upewnij się, że masz poprawne połączenie z Internetem.");
-      } else {
-        setApiError("Wystąpił nieoczekiwany błąd aplikacji.");
-      }
+      if (err.response) setApiError(`Błąd serwera: ${err.response.status}. Sprawdź dane.`);
+      else if (err.request) setApiError("Nie można połączyć się z serwerem. Upewnij się, że masz poprawne połączenie z Internetem.");
+      else setApiError("Wystąpił nieoczekiwany błąd aplikacji.");
     } finally {
       setLoading(false);
     }
@@ -210,82 +186,85 @@ export default function HouseForm() {
 
     return Object.entries(predictionData.shap_values)
       .filter(([key]) => {
-          const k = key.toLowerCase();
+        const k = key.toLowerCase();
 
-          if (['area', 'plot', 'rooms', 'year', 'floors'].some(x => k.includes(x))) return true;
+        if (['area', 'plot', 'rooms', 'year', 'floors'].some(x => k.includes(x))) return true;
 
-          if (k.includes('garage') && formData.hasGarage) return true;
-          if (k.includes('basement') && formData.hasBasement) return true;
-          if (k.includes('gas') && formData.hasGas) return true;
-          if (k.includes('sewerage') && formData.hasSewerage) return true; 
-          if ((k.includes('access') || k.includes('hard')) && formData.isHardAccess) return true;
+        if (k.includes('garage') && formData.hasGarage) return true;
+        if (k.includes('basement') && formData.hasBasement) return true;
+        if (k.includes('gas') && formData.hasGas) return true;
+        if (k.includes('sewerage') && formData.hasSewerage) return true;
+        if ((k.includes('access') || k.includes('hard')) && formData.isHardAccess) return true;
 
-          const selectionValues = [
-            formData.material, 
-            formData.roofType, 
-            formData.heatingType, 
-            formData.constructionStatus,
-            formData.market,
-            formData.city,
-            formData.province
-          ].map(s => s.toLowerCase());
+        const selectionValues = [
+          formData.material,
+          formData.roofType,
+          formData.heatingType,
+          formData.constructionStatus,
+          formData.market,
+          formData.city,
+          formData.province
+        ].map(s => s.toLowerCase());
 
-          return selectionValues.some(selection => k.includes(selection));
+        return selectionValues.some(selection => k.includes(selection));
       })
       .map(([key, value]) => {
-          let niceName = key;
-          const k = key.toLowerCase();
+        let niceName = key;
+        const k = key.toLowerCase();
 
-          if (k.includes('plot')) {
-             niceName = 'Powierzchnia działki';
-          } 
-          else if (k.includes('area')) { 
-             niceName = 'Metraż domu'; 
-          }
-          else if (k.includes('rooms')) niceName = 'Liczba pokoi';
-          else if (k.includes('floors')) niceName = 'Liczba pięter';
-          else if (k.includes('year')) niceName = 'Rok budowy';
-          else if (k.includes('garage')) niceName = 'Garaż';
-          else if (k.includes('basement')) niceName = 'Piwnica';
-          else if (k.includes('gas')) niceName = 'Gaz';
-          else if (k.includes('sewerage')) niceName = 'Kanalizacja';
-          else if (k.includes('access') || k.includes('hard')) niceName = 'Dojazd utwardzony';
-          else if (k.includes('market') && k.includes('secondary')) niceName = 'Rynek: Wtórny';
-          else if (k.includes('market') && k.includes('primary')) niceName = 'Rynek: Pierwotny';
-          else if (k.includes('construction')) niceName = 'Stan wykończenia';
+        if (k.includes('plot')) niceName = 'Powierzchnia działki';
+        else if (k.includes('area')) niceName = 'Metraż domu';
+        else if (k.includes('rooms')) niceName = 'Liczba pokoi';
+        else if (k.includes('floors')) niceName = 'Liczba pięter';
+        else if (k.includes('year')) niceName = 'Rok budowy';
+        else if (k.includes('garage')) niceName = 'Garaż';
+        else if (k.includes('basement')) niceName = 'Piwnica';
+        else if (k.includes('gas')) niceName = 'Gaz';
+        else if (k.includes('sewerage')) niceName = 'Kanalizacja';
+        else if (k.includes('access') || k.includes('hard')) niceName = 'Dojazd utwardzony';
+        else if (k.includes('market') && k.includes('secondary')) niceName = 'Rynek: Wtórny';
+        else if (k.includes('market') && k.includes('primary')) niceName = 'Rynek: Pierwotny';
+        else if (k.includes('construction')) niceName = 'Stan wykończenia';
+        else if (k.includes('city')) niceName = `Lokalizacja: ${formData.city}`;
+        else if (k.includes('province') || k.includes('region')) niceName = `Woj.: ${formData.province}`;
+        else if (k.includes('roof')) niceName = formData.roofType === 'flat' ? 'Dach: Płaski' : 'Dach: Skośny';
+        else if (k.includes('material')) {
+          const matMap: Record<string, string> = { brick: 'Cegła', wood: 'Drewno', concrete: 'Beton', breezeblock: 'Pustak', silikat: 'Silikat' };
+          niceName = `Materiał: ${matMap[formData.material] || formData.material}`;
+        }
+        else if (k.includes('heating')) {
+          const heatMap: Record<string, string> = { gas: 'Gazowe', heat_pump: 'Pompa ciepła', coal: 'Węglowe', electric: 'Elektryczne', fireplace: 'Kominek' };
+          niceName = `Ogrzewanie: ${heatMap[formData.heatingType] || formData.heatingType}`;
+        }
 
-          else if (k.includes('city')) niceName = `Lokalizacja: ${formData.city}`;
-          else if (k.includes('province') || k.includes('region')) niceName = `Woj.: ${formData.province}`;
-          else if (k.includes('roof')) niceName = formData.roofType === 'flat' ? 'Dach: Płaski' : 'Dach: Skośny';
-          else if (k.includes('material')) {
-             const matMap: Record<string, string> = { brick: 'Cegła', wood: 'Drewno', concrete: 'Beton', breezeblock: 'Pustak', silikat: 'Silikat' };
-             niceName = `Materiał: ${matMap[formData.material] || formData.material}`;
-          }
-          else if (k.includes('heating')) {
-              const heatMap: Record<string, string> = { gas: 'Gazowe', heat_pump: 'Pompa ciepła', coal: 'Węglowe', electric: 'Elektryczne', fireplace: 'Kominek' };
-              niceName = `Ogrzewanie: ${heatMap[formData.heatingType] || formData.heatingType}`;
-          }
-
-          return { name: niceName, value };
+        return { name: niceName, value };
       })
       .reduce((acc, curr) => {
-          const existing = acc.find(item => item.name === curr.name);
-          if (existing) {
-              existing.value += curr.value;
-          } else {
-              acc.push(curr);
-          }
-          return acc;
+        const existing = acc.find(item => item.name === curr.name);
+        if (existing) existing.value += curr.value;
+        else acc.push(curr);
+        return acc;
       }, [] as { name: string, value: number }[])
       .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
-      .filter(item => Math.abs(item.value) > 50); 
+      .filter(item => Math.abs(item.value) > 50);
   };
+
+  const houseFeaturesForListing = useMemo(() => {
+    if (!predictionData) return null;
+
+    return {
+      ...formData,
+      areaHouse: Number(formData.areaHouse),
+      areaPlot: Number(formData.areaPlot),
+      rooms: Number(formData.rooms),
+      floors: Number(formData.floors),
+      year: Number(formData.year),
+    };
+  }, [predictionData, formData]);
 
   const getInputClass = (fieldName: string) => `
     w-full p-3 border rounded-lg outline-none transition bg-white
-    ${errors[fieldName] 
-      ? 'border-red-500 focus:ring-red-500' 
-      : 'border-gray-300 focus:ring-emerald-500'}
+    ${errors[fieldName] ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-emerald-500'}
   `;
 
   const labelClass = "block text-sm font-medium text-gray-700 mb-1";
@@ -299,33 +278,37 @@ export default function HouseForm() {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-            
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <label className={labelClass}>Powierzchnia Domu (m²)</label>
               <input type="number" name="areaHouse" value={formData.areaHouse} onChange={handleChange} className={getInputClass('areaHouse')} step="0.1" placeholder="np. 120" />
               {errors.areaHouse && <p className="text-red-500 text-xs mt-1">{errors.areaHouse}</p>}
             </div>
+
             <div>
               <label className={labelClass}>Powierzchnia Działki (m²)</label>
               <input type="number" name="areaPlot" value={formData.areaPlot} onChange={handleChange} className={getInputClass('areaPlot')} step="1" placeholder="np. 800" />
               {errors.areaPlot && <p className="text-red-500 text-xs mt-1">{errors.areaPlot}</p>}
             </div>
+
             <div>
               <label className={labelClass}>Liczba pokoi</label>
               <input type="number" name="rooms" value={formData.rooms} onChange={handleChange} className={getInputClass('rooms')} placeholder="np. 1"/>
               {errors.rooms && <p className="text-red-500 text-xs mt-1">{errors.rooms}</p>}
             </div>
+
             <div>
               <label className={labelClass}>Rok budowy</label>
               <input type="number" name="year" value={formData.year} onChange={handleChange} className={getInputClass('year')} placeholder="np. 2026"/>
               {errors.year && <p className="text-red-500 text-xs mt-1">{errors.year}</p>}
             </div>
+
             <div>
               <label className={labelClass}>Liczba pięter</label>
               <input type="number" name="floors" value={formData.floors} onChange={handleChange} className={getInputClass('floors')} placeholder="0 = Parter" />
               {errors.floors && <p className="text-red-500 text-xs mt-1">{errors.floors}</p>}
             </div>
+
             <div>
               <label className={labelClass}>Rodzaj zabudowy</label>
               <select name="buildType" value={formData.buildType} onChange={handleChange} className={getInputClass('buildType')}>
@@ -335,7 +318,8 @@ export default function HouseForm() {
                 <option value="manor">Dworek</option>
               </select>
             </div>
-             <div>
+
+            <div>
               <label className={labelClass}>Stan wykończenia</label>
               <select name="constructionStatus" value={formData.constructionStatus} onChange={handleChange} className={getInputClass('constructionStatus')}>
                 <option value="ready_to_use">Do zamieszkania</option>
@@ -344,13 +328,15 @@ export default function HouseForm() {
                 <option value="unfinished_close">Stan surowy zamknięty</option>
               </select>
             </div>
-             <div>
+
+            <div>
               <label className={labelClass}>Rynek</label>
               <select name="market" value={formData.market} onChange={handleChange} className={getInputClass('market')}>
                 <option value="secondary">Wtórny</option>
                 <option value="primary">Pierwotny</option>
               </select>
             </div>
+
             <div>
               <label className={labelClass}>Materiał budynku</label>
               <select name="material" value={formData.material} onChange={handleChange} className={getInputClass('material')}>
@@ -361,7 +347,8 @@ export default function HouseForm() {
                 <option value="silikat">Silikat</option>
               </select>
             </div>
-             <div>
+
+            <div>
               <label className={labelClass}>Rodzaj dachu</label>
               <select name="roofType" value={formData.roofType} onChange={handleChange} className={getInputClass('roofType')}>
                 <option value="diagonal">Skośny</option>
@@ -373,45 +360,47 @@ export default function HouseForm() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
             <div>
-               <label className={labelClass}>Miejscowość</label>
-               <input type="text" name="city" value={formData.city} onChange={handleChange} className={getInputClass('city')} placeholder="np. Warszawa" />
-               {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
+              <label className={labelClass}>Miejscowość</label>
+              <input type="text" name="city" value={formData.city} onChange={handleChange} className={getInputClass('city')} placeholder="np. Warszawa" />
+              {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
             </div>
+
             <div>
-               <label className={labelClass}>Województwo</label>
-               <select name="province" value={formData.province} onChange={handleChange} className={getInputClass('province')}>
-                 {PROVINCES.map(prov => (
-                   <option key={prov} value={prov}>{prov}</option>
-                 ))}
-               </select>
+              <label className={labelClass}>Województwo</label>
+              <select name="province" value={formData.province} onChange={handleChange} className={getInputClass('province')}>
+                {PROVINCES.map(prov => (
+                  <option key={prov} value={prov}>{prov}</option>
+                ))}
+              </select>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
-             <div>
-               <label className={labelClass}>Rodzaj Ogrzewania</label>
-               <select name="heatingType" value={formData.heatingType} onChange={handleChange} className={getInputClass('heatingType')}>
-                 <option value="gas">Gazowe</option>
-                 <option value="heat_pump">Pompa ciepła</option>
-                 <option value="coal">Węglowe</option>
-                 <option value="electric">Elektryczne</option>
-                 <option value="fireplace">Kominek</option>
-                 <option value="other">Inne / Brak danych</option>
-               </select>
-             </div>
-             <div>
-               <label className={labelClass}>Typ Ogrodzenia</label>
-               <select name="fenceType" value={formData.fenceType} onChange={handleChange} className={getInputClass('fenceType')}>
-                 <option value="">Brak / Nie wiem</option>
-                 <option value="wire">Siatka</option>
-                 <option value="metal">Metalowe</option>
-                 <option value="brick">Murowane</option>
-                 <option value="wood">Drewniane</option>
-                 <option value="concrete">Betonowe</option>
-                 <option value="mixed">Mieszane</option>
-                 <option value="hedge">Żywopłot</option>
-               </select>
-             </div>
+            <div>
+              <label className={labelClass}>Rodzaj Ogrzewania</label>
+              <select name="heatingType" value={formData.heatingType} onChange={handleChange} className={getInputClass('heatingType')}>
+                <option value="gas">Gazowe</option>
+                <option value="heat_pump">Pompa ciepła</option>
+                <option value="coal">Węglowe</option>
+                <option value="electric">Elektryczne</option>
+                <option value="fireplace">Kominek</option>
+                <option value="other">Inne / Brak danych</option>
+              </select>
+            </div>
+
+            <div>
+              <label className={labelClass}>Typ Ogrodzenia</label>
+              <select name="fenceType" value={formData.fenceType} onChange={handleChange} className={getInputClass('fenceType')}>
+                <option value="">Brak / Nie wiem</option>
+                <option value="wire">Siatka</option>
+                <option value="metal">Metalowe</option>
+                <option value="brick">Murowane</option>
+                <option value="wood">Drewniane</option>
+                <option value="concrete">Betonowe</option>
+                <option value="mixed">Mieszane</option>
+                <option value="hedge">Żywopłot</option>
+              </select>
+            </div>
           </div>
 
           <div className="pt-4 border-t">
@@ -429,7 +418,7 @@ export default function HouseForm() {
                 <input type="checkbox" name="hasGas" checked={formData.hasGas} onChange={handleChange} className="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500" />
                 <span>Gaz</span>
               </label>
-               <label className={checkboxContainerClass}>
+              <label className={checkboxContainerClass}>
                 <input type="checkbox" name="hasSewerage" checked={formData.hasSewerage} onChange={handleChange} className="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500" />
                 <span>Kanalizacja / Szambo</span>
               </label>
@@ -441,50 +430,60 @@ export default function HouseForm() {
           </div>
 
           <div className="space-y-6 pt-6 border-t border-gray-100">
-             {apiError && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-center font-medium">
-                  ⚠️ {apiError}
-                </div>
-             )}
+            {apiError && (
+              <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-center font-medium">
+                ⚠️ {apiError}
+              </div>
+            )}
 
-             {predictionData && !loading && (
-                <div className="animate-fade-in space-y-8">
-                  
-                  <div className="p-8 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl text-center shadow-md relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-2 bg-green-500"></div>
-                    <p className="text-green-800 font-bold uppercase tracking-widest text-sm mb-3">
-                      Szacowany Przedział Wartości
-                    </p>
-                    <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4">
-                        <span className="text-4xl md:text-5xl font-extrabold text-gray-900">
-                          {predictionData.price_min.toLocaleString('pl-PL', { maximumFractionDigits: 0 })}
-                        </span>
-                        <span className="text-2xl text-gray-400 font-light">—</span>
-                        <span className="text-4xl md:text-5xl font-extrabold text-green-700">
-                          {predictionData.price_max.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} zł
-                        </span>
-                    </div>
-                  </div>
-
-                  {predictionData.shap_values && Object.keys(predictionData.shap_values).length > 0 && (
-                    <div className="mt-6">
-                         <FeatureImportanceChart data={getChartData()} />
-                    </div>
-                  )}
-
-                  <div className="text-center text-xs text-gray-400">
-                    Model wycenił nieruchomość na podstawie {Object.keys(predictionData.shap_values || {}).length} kluczowych cech.
+            {predictionData && !loading && (
+              <div className="animate-fade-in space-y-8">
+                <div className="p-8 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl text-center shadow-md relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-2 bg-green-500"></div>
+                  <p className="text-green-800 font-bold uppercase tracking-widest text-sm mb-3">
+                    Szacowany Przedział Wartości
+                  </p>
+                  <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4">
+                    <span className="text-4xl md:text-5xl font-extrabold text-gray-900">
+                      {predictionData.price_min.toLocaleString('pl-PL', { maximumFractionDigits: 0 })}
+                    </span>
+                    <span className="text-2xl text-gray-400 font-light">—</span>
+                    <span className="text-4xl md:text-5xl font-extrabold text-green-700">
+                      {predictionData.price_max.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} zł
+                    </span>
                   </div>
                 </div>
-             )}
+
+                {predictionData.shap_values && Object.keys(predictionData.shap_values).length > 0 && (
+                  <div className="mt-6">
+                    <FeatureImportanceChart data={getChartData()} />
+                  </div>
+                )}
+
+                {houseFeaturesForListing && (
+                  <PublishListingPanel
+                    kind="houses"
+                    endpoint={LISTING_ENDPOINTS.houses}
+                    features={houseFeaturesForListing}
+                    suggestedMin={predictionData.price_min}
+                    suggestedMax={predictionData.price_max}
+                    defaultTitle={`Dom ${formData.areaHouse} m², działka ${formData.areaPlot} m², ${formData.city}`}
+                  />
+                )}
+
+                <div className="text-center text-xs text-gray-400">
+                  Model wycenił nieruchomość na podstawie {Object.keys(predictionData.shap_values || {}).length} kluczowych cech.
+                </div>
+              </div>
+            )}
           </div>
 
           <button
             type="submit"
             disabled={loading}
             className={`w-full text-white font-bold py-4 rounded-xl shadow-lg text-lg transition
-              ${loading 
-                ? 'bg-gray-400 cursor-wait' 
+              ${loading
+                ? 'bg-gray-400 cursor-wait'
                 : 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 hover:-translate-y-0.5'
               }`}
           >

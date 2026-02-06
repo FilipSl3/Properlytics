@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../api';
-import FeatureImportanceChart from '../components/FeatureImportanceChart'; 
+import FeatureImportanceChart from '../components/FeatureImportanceChart';
+import PublishListingPanel from '../components/PublishListingPanel';
+import { LISTING_ENDPOINTS } from './listings/listingUtils';
 
 interface PredictionData {
   price_min: number;
   price_max: number;
   shap_values: Record<string, number>;
+  predicted_price?: number;
 }
 
 interface FormData {
@@ -88,13 +91,13 @@ export default function FlatForm() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
+
     const isCheckbox = type === 'checkbox';
     const checked = isCheckbox ? (e.target as HTMLInputElement).checked : false;
 
-    setFormData(prev => ({ 
-      ...prev, 
-      [name as keyof FormData]: isCheckbox ? checked : value 
+    setFormData(prev => ({
+      ...prev,
+      [name as keyof FormData]: isCheckbox ? checked : value
     }));
 
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
@@ -175,79 +178,95 @@ export default function FlatForm() {
 
     return Object.entries(predictionData.shap_values)
       .filter(([key]) => {
-          const k = key.toLowerCase();
+        const k = key.toLowerCase();
 
-          if (['area', 'rooms', 'floor', 'year'].some(x => k.includes(x))) return true;
-          if (k.includes('lift') || k.includes('elevator')) return true;
-          if ((k.includes('outdoor') || k.includes('balcony')) && formData.hasOutdoor) return true;
-          if ((k.includes('parking') || k.includes('garage')) && formData.hasParking) return true;
+        if (['area', 'rooms', 'floor', 'year'].some(x => k.includes(x))) return true;
+        if (k.includes('lift') || k.includes('elevator')) return true;
+        if ((k.includes('outdoor') || k.includes('balcony')) && formData.hasOutdoor) return true;
+        if ((k.includes('parking') || k.includes('garage')) && formData.hasParking) return true;
 
-          const selectionValues = [
-            formData.buildType,
-            formData.material, 
-            formData.heating, 
-            formData.constructionStatus,
-            formData.market,
-            formData.city,
-            formData.province,
-            formData.district 
-          ]
+        const selectionValues = [
+          formData.buildType,
+          formData.material,
+          formData.heating,
+          formData.constructionStatus,
+          formData.market,
+          formData.city,
+          formData.province,
+          formData.district
+        ]
           .filter(val => val !== '' && val !== null && val !== undefined)
           .map(s => s.toString().toLowerCase());
 
-          return selectionValues.some(selection => k.includes(selection));
+        return selectionValues.some(selection => k.includes(selection));
       })
       .map(([key, value]) => {
-          let niceName = key;
-          const k = key.toLowerCase();
+        let niceName = key;
+        const k = key.toLowerCase();
 
-          if (k.includes('total')) niceName = 'Liczba pięter w budynku';
-          else if (k.includes('floor')) niceName = 'Piętro';
-          else if (k.includes('area')) niceName = 'Metraż';
-          else if (k.includes('rooms')) niceName = 'Liczba pokoi';
-          else if (k.includes('year')) niceName = 'Rok budowy';
-          
-          else if (k.includes('lift') || k.includes('elevator')) niceName = 'Winda';
-          
-          else if (k.includes('outdoor') || k.includes('balcony')) niceName = 'Balkon / Ogród';
-          else if (k.includes('parking') || k.includes('garage')) niceName = 'Miejsce parkingowe';
+        if (k.includes('total')) niceName = 'Liczba pięter w budynku';
+        else if (k.includes('floor')) niceName = 'Piętro';
+        else if (k.includes('area')) niceName = 'Metraż';
+        else if (k.includes('rooms')) niceName = 'Liczba pokoi';
+        else if (k.includes('year')) niceName = 'Rok budowy';
 
-          else if (k.includes('market') && k.includes('secondary')) niceName = 'Rynek: Wtórny';
-          else if (k.includes('market') && k.includes('primary')) niceName = 'Rynek: Pierwotny';
-          
-          else if (k.includes('city')) niceName = `Lokalizacja: ${formData.city}`;
-          else if (k.includes('province') || k.includes('region')) niceName = `Woj.: ${formData.province}`;
-          
-          else if (k.includes('district')) niceName = formData.district ? `Dzielnica: ${formData.district}` : 'Dzielnica'; 
+        else if (k.includes('lift') || k.includes('elevator')) niceName = 'Winda';
 
-          else if (k.includes('finish') || k.includes('construction')) {
-              if (k.includes('ready') || k.includes('use')) niceName = 'Stan: Do zamieszkania';
-              else if (k.includes('completion') || k.includes('develop')) niceName = 'Stan: Do wykończenia';
-              else if (k.includes('renovate') || k.includes('renovation')) niceName = 'Stan: Do remontu';
-              else niceName = 'Stan wykończenia';
-          }
+        else if (k.includes('outdoor') || k.includes('balcony')) niceName = 'Balkon / Ogród';
+        else if (k.includes('parking') || k.includes('garage')) niceName = 'Miejsce parkingowe';
 
-          else if (k.includes('build')) {
-              const types: Record<string, string> = { block: 'Blok', tenement: 'Kamienica', apartment: 'Apartamentowiec', house: 'Dom wielorodzinny' };
-              const foundType = Object.keys(types).find(t => k.includes(t));
-              niceName = `Typ: ${foundType ? types[foundType] : types[formData.buildType] || 'Inny'}`;
-          }
-          else if (k.includes('heating')) {
-              const heats: Record<string, string> = { district: 'Miejskie', gas: 'Gazowe', electric: 'Elektryczne', boiler: 'Kotłownia' };
-              niceName = `Ogrzewanie: ${heats[formData.heating] || formData.heating}`;
-          }
+        else if (k.includes('market') && k.includes('secondary')) niceName = 'Rynek: Wtórny';
+        else if (k.includes('market') && k.includes('primary')) niceName = 'Rynek: Pierwotny';
 
-          return { name: niceName, value };
+        else if (k.includes('city')) niceName = `Lokalizacja: ${formData.city}`;
+        else if (k.includes('province') || k.includes('region')) niceName = `Woj.: ${formData.province}`;
+
+        else if (k.includes('district')) niceName = formData.district ? `Dzielnica: ${formData.district}` : 'Dzielnica';
+
+        else if (k.includes('finish') || k.includes('construction')) {
+          if (k.includes('ready') || k.includes('use')) niceName = 'Stan: Do zamieszkania';
+          else if (k.includes('completion') || k.includes('develop')) niceName = 'Stan: Do wykończenia';
+          else if (k.includes('renovate') || k.includes('renovation')) niceName = 'Stan: Do remontu';
+          else niceName = 'Stan wykończenia';
+        }
+
+        else if (k.includes('build')) {
+          const types: Record<string, string> = { block: 'Blok', tenement: 'Kamienica', apartment: 'Apartamentowiec', house: 'Dom wielorodzinny' };
+          const foundType = Object.keys(types).find(t => k.includes(t));
+          niceName = `Typ: ${foundType ? types[foundType] : types[formData.buildType] || 'Inny'}`;
+        }
+        else if (k.includes('heating')) {
+          const heats: Record<string, string> = { district: 'Miejskie', gas: 'Gazowe', electric: 'Elektryczne', boiler: 'Kotłownia' };
+          niceName = `Ogrzewanie: ${heats[formData.heating] || formData.heating}`;
+        }
+
+        return { name: niceName, value };
       })
       .reduce((acc, curr) => {
-          const existing = acc.find(item => item.name === curr.name);
-          if (existing) existing.value += curr.value;
-          else acc.push(curr);
-          return acc;
+        const existing = acc.find(item => item.name === curr.name);
+        if (existing) existing.value += curr.value;
+        else acc.push(curr);
+        return acc;
       }, [] as { name: string, value: number }[])
       .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
-      .filter(item => Math.abs(item.value) > 50); 
+      .filter(item => Math.abs(item.value) > 50);
   };
+
+  const flatFeaturesForListing = useMemo(() => {
+    if (!predictionData) return null;
+
+    return {
+      ...formData,
+      area: Number(formData.area),
+      rooms: Number(formData.rooms),
+      floor: Number(formData.floor),
+      totalFloors: Number(formData.totalFloors),
+      year: Number(formData.year),
+      hasLift: formData.hasLift ? 1 : 0,
+      hasOutdoor: formData.hasOutdoor ? 1 : 0,
+      hasParking: formData.hasParking ? 1 : 0,
+    };
+  }, [predictionData, formData]);
 
   const getInputClass = (fieldName: string) => `
     w-full p-3 border rounded-lg outline-none transition bg-white
@@ -287,7 +306,7 @@ export default function FlatForm() {
             <div>
               <label className={labelClass}>Liczba pięter w budynku</label>
               <input type="number" name="totalFloors" value={formData.totalFloors} onChange={handleChange} className={getInputClass('totalFloors')} placeholder="np. 4"/>
-               {errors.totalFloors && <p className="text-red-500 text-xs mt-1">{errors.totalFloors}</p>}
+              {errors.totalFloors && <p className="text-red-500 text-xs mt-1">{errors.totalFloors}</p>}
             </div>
 
             <div>
@@ -296,7 +315,7 @@ export default function FlatForm() {
               {errors.year && <p className="text-red-500 text-xs mt-1">{errors.year}</p>}
             </div>
 
-             <div>
+            <div>
               <label className={labelClass}>Rodzaj zabudowy</label>
               <select name="buildType" value={formData.buildType} onChange={handleChange} className={getInputClass('buildType')}>
                 <option value="block">Blok</option>
@@ -305,6 +324,7 @@ export default function FlatForm() {
                 <option value="house">Dom wielorodzinny</option>
               </select>
             </div>
+
             <div>
               <label className={labelClass}>Materiał budynku</label>
               <select name="material" value={formData.material} onChange={handleChange} className={getInputClass('material')}>
@@ -315,7 +335,8 @@ export default function FlatForm() {
                 <option value="breezeblock">Pustak</option>
               </select>
             </div>
-             <div>
+
+            <div>
               <label className={labelClass}>Ogrzewanie</label>
               <select name="heating" value={formData.heating} onChange={handleChange} className={getInputClass('heating')}>
                 <option value="district">Miejskie</option>
@@ -324,14 +345,16 @@ export default function FlatForm() {
                 <option value="boiler">Kotłownia</option>
               </select>
             </div>
-             <div>
+
+            <div>
               <label className={labelClass}>Rynek</label>
               <select name="market" value={formData.market} onChange={handleChange} className={getInputClass('market')}>
                 <option value="secondary">Wtórny</option>
                 <option value="primary">Pierwotny</option>
               </select>
             </div>
-             <div>
+
+            <div>
               <label className={labelClass}>Stan wykończenia</label>
               <select name="constructionStatus" value={formData.constructionStatus} onChange={handleChange} className={getInputClass('constructionStatus')}>
                 <option value="ready_to_use">Do zamieszkania</option>
@@ -343,31 +366,31 @@ export default function FlatForm() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t">
             <div>
-               <label className={labelClass}>Miejscowość</label>
-               <input
-                 type="text"
-                 name="city"
-                 value={formData.city}
-                 onChange={handleChange}
-                 className={getInputClass('city')}
-                 placeholder="np. Warszawa"
-               />
-               {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
+              <label className={labelClass}>Miejscowość</label>
+              <input
+                type="text"
+                name="city"
+                value={formData.city}
+                onChange={handleChange}
+                className={getInputClass('city')}
+                placeholder="np. Warszawa"
+              />
+              {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
             </div>
 
             <div>
-               <label className={labelClass}>Województwo</label>
-               <select name="province" value={formData.province} onChange={handleChange} className={getInputClass('province')}>
-                 {PROVINCES.map(prov => (
-                   <option key={prov} value={prov}>{prov}</option>
-                 ))}
-               </select>
-               {errors.province && <p className="text-red-500 text-xs mt-1">{errors.province}</p>}
+              <label className={labelClass}>Województwo</label>
+              <select name="province" value={formData.province} onChange={handleChange} className={getInputClass('province')}>
+                {PROVINCES.map(prov => (
+                  <option key={prov} value={prov}>{prov}</option>
+                ))}
+              </select>
+              {errors.province && <p className="text-red-500 text-xs mt-1">{errors.province}</p>}
             </div>
 
             <div>
-               <label className={labelClass}>Dzielnica (opcjonalne)</label>
-               <input type="text" name="district" value={formData.district} onChange={handleChange} className={getInputClass('district')} />
+              <label className={labelClass}>Dzielnica (opcjonalne)</label>
+              <input type="text" name="district" value={formData.district} onChange={handleChange} className={getInputClass('district')} />
             </div>
           </div>
 
@@ -390,51 +413,62 @@ export default function FlatForm() {
           </div>
 
           <div className="space-y-6 pt-6 border-t border-gray-100">
-             {apiError && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-center font-medium">
-                  ⚠️ {apiError}
-                </div>
-             )}
+            {apiError && (
+              <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-center font-medium">
+                ⚠️ {apiError}
+              </div>
+            )}
 
-             {predictionData && !loading && (
-                <div className="animate-fade-in space-y-6">
+            {predictionData && !loading && (
+              <div className="animate-fade-in space-y-6">
 
-                  <div className="p-8 bg-gradient-to-br from-blue-50 to-emerald-50 border border-blue-200 rounded-2xl text-center shadow-md relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-2 bg-blue-500"></div>
-                    <p className="text-blue-800 font-bold uppercase tracking-widest text-sm mb-3">
-                      Szacowany Przedział Wartości
-                    </p>
-                    <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4">
-                        <span className="text-4xl md:text-5xl font-extrabold text-gray-900">
-                          {predictionData.price_min.toLocaleString('pl-PL', { maximumFractionDigits: 0 })}
-                        </span>
-                        <span className="text-2xl text-gray-400 font-light">—</span>
-                        <span className="text-4xl md:text-5xl font-extrabold text-blue-700">
-                          {predictionData.price_max.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} zł
-                        </span>
-                    </div>
+                <div className="p-8 bg-gradient-to-br from-blue-50 to-emerald-50 border border-blue-200 rounded-2xl text-center shadow-md relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-2 bg-blue-500"></div>
+                  <p className="text-blue-800 font-bold uppercase tracking-widest text-sm mb-3">
+                    Szacowany Przedział Wartości
+                  </p>
+                  <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4">
+                    <span className="text-4xl md:text-5xl font-extrabold text-gray-900">
+                      {predictionData.price_min.toLocaleString('pl-PL', { maximumFractionDigits: 0 })}
+                    </span>
+                    <span className="text-2xl text-gray-400 font-light">—</span>
+                    <span className="text-4xl md:text-5xl font-extrabold text-blue-700">
+                      {predictionData.price_max.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} zł
+                    </span>
                   </div>
-
-                  {predictionData.shap_values && Object.keys(predictionData.shap_values).length > 0 && (
-                      <div className="mt-6">
-                         <FeatureImportanceChart data={getChartData()} />
-                      </div>
-                  )}
-                  
-                  <div className="text-center text-xs text-gray-400">
-                    Model wycenił mieszkanie na podstawie kluczowych cech lokalnych.
-                  </div>
-
                 </div>
-             )}
+
+                {predictionData.shap_values && Object.keys(predictionData.shap_values).length > 0 && (
+                  <div className="mt-6">
+                    <FeatureImportanceChart data={getChartData()} />
+                  </div>
+                )}
+
+                {flatFeaturesForListing && (
+                  <PublishListingPanel
+                    kind="flats"
+                    endpoint={LISTING_ENDPOINTS.flats}
+                    features={flatFeaturesForListing}
+                    suggestedMin={predictionData.price_min}
+                    suggestedMax={predictionData.price_max}
+                    defaultTitle={`Mieszkanie ${formData.area} m², ${formData.rooms} pok., ${formData.city}`}
+                  />
+                )}
+
+                <div className="text-center text-xs text-gray-400">
+                  Model wycenił mieszkanie na podstawie kluczowych cech lokalnych.
+                </div>
+
+              </div>
+            )}
           </div>
 
           <button
             type="submit"
             disabled={loading}
             className={`w-full text-white font-bold py-4 rounded-xl shadow-lg text-lg transition
-              ${loading 
-                ? 'bg-gray-400 cursor-wait' 
+              ${loading
+                ? 'bg-gray-400 cursor-wait'
                 : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:-translate-y-0.5'
               }`}
           >

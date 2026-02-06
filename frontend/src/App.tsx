@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import FlatForm from './pages/FlatForm';
@@ -7,20 +7,43 @@ import PlotForm from './pages/PlotForm';
 import Admin from "./pages/Admin";
 import ErrorPage from './pages/ErrorPage';
 
+// OGŁOSZENIA
+import ListingsLayout from './pages/listings/ListingsLayout';
+import FlatListings from './pages/listings/FlatListings';
+import HouseListings from './pages/listings/HouseListings';
+import PlotListings from './pages/listings/PlotListings';
+import FlatListingDetails from './pages/listings/FlatListingDetails';
+import HouseListingDetails from './pages/listings/HouseListingDetails';
+import PlotListingDetails from './pages/listings/PlotListingDetails';
+
 function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col">
         <Navbar />
+
         <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/mieszkanie" element={<FlatForm />} />
             <Route path="/dom" element={<HouseForm />} />
             <Route path="/dzialka" element={<PlotForm />} />
-	        <Route path="/admin" element={<Admin />} />
+            <Route path="/admin" element={<Admin />} />
 
-            {/* 403 - Brak dostępu */}
+            {/* OGŁOSZENIA */}
+            <Route path="/ogloszenia" element={<ListingsLayout />}>
+              <Route index element={<Navigate to="mieszkania" replace />} />
+
+              <Route path="mieszkania" element={<FlatListings />} />
+              <Route path="mieszkania/:id" element={<FlatListingDetails />} />
+
+              <Route path="domy" element={<HouseListings />} />
+              <Route path="domy/:id" element={<HouseListingDetails />} />
+
+              <Route path="dzialki" element={<PlotListings />} />
+              <Route path="dzialki/:id" element={<PlotListingDetails />} />
+            </Route>
+
             <Route
               path="/403"
               element={
@@ -32,7 +55,6 @@ function App() {
               }
             />
 
-            {/* 500 - Błąd serwera (Internal Server Error) */}
             <Route
               path="/500"
               element={
@@ -44,7 +66,6 @@ function App() {
               }
             />
 
-            {/* 503 - Serwer niedostępny (Service Unavailable) */}
             <Route
               path="/503"
               element={
@@ -56,7 +77,6 @@ function App() {
               }
             />
 
-            {/* 404 - Nie znaleziono (Catch-all na końcu) */}
             <Route
               path="*"
               element={
@@ -67,7 +87,6 @@ function App() {
                 />
               }
             />
-
           </Routes>
         </main>
 
@@ -76,7 +95,6 @@ function App() {
             &copy; {new Date().getFullYear()} Properlytics Valuator. Projekt inżynierski.
           </div>
         </footer>
-
       </div>
     </Router>
   );

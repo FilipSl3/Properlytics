@@ -7,3 +7,5 @@ pydantic
 requests
 beautifulsoup4
 apscheduler
+sqlmodel
+psycopg2-binary
