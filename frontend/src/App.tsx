@@ -6,6 +6,7 @@ import HouseForm from './pages/HouseForm';
 import PlotForm from './pages/PlotForm';
 import Admin from "./pages/Admin";
 import ErrorPage from './pages/ErrorPage';
+import { AuthProvider } from './context/AuthContext';
 
 // OGŁOSZENIA
 import ListingsLayout from './pages/listings/ListingsLayout';
@@ -18,17 +19,18 @@ import PlotListingDetails from './pages/listings/PlotListingDetails';
 
 function App() {
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col">
-        <Navbar />
+    <AuthProvider>
+      <Router>
+        <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col">
+          <Navbar />
 
-        <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/mieszkanie" element={<FlatForm />} />
-            <Route path="/dom" element={<HouseForm />} />
-            <Route path="/dzialka" element={<PlotForm />} />
-            <Route path="/admin" element={<Admin />} />
+          <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/mieszkanie" element={<FlatForm />} />
+              <Route path="/dom" element={<HouseForm />} />
+              <Route path="/dzialka" element={<PlotForm />} />
+              <Route path="/admin" element={<Admin />} />
 
             {/* OGŁOSZENIA */}
             <Route path="/ogloszenia" element={<ListingsLayout />}>
@@ -97,6 +99,7 @@ function App() {
         </footer>
       </div>
     </Router>
+    </AuthProvider>
   );
 }
 

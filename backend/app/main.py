@@ -4,16 +4,18 @@ import sys
 from typing import Dict, Tuple, Any
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.db import create_db_and_tables
+from app.db import create_db_and_tables, get_engine
 from app.models.house import HouseInput
 from app.models.flat import FlatInput
 from app.models.plot import PlotInput
+from app.models.admin import AdminUser
 
 from ml.model_loader import load_models, ModelRegistry
 from ml.input_adapter import adapt_house_input, adapt_plot_input
+from app.auth import get_password_hash, require_admin
 
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
@@ -103,6 +105,24 @@ def _force_single_thread_for_flat():
         print(f"Nie udało się przestawić n_jobs: {e}")
 
 
+def create_admin_user():
+    from app.models.admin import AdminUser
+    from sqlmodel import Session
+
+    engine = get_engine()
+    with Session(engine) as session:
+        existing = session.query(AdminUser).filter(AdminUser.username == "admin").first()
+        if not existing:
+            admin = AdminUser(
+                username="admin",
+                hashed_password=get_password_hash("admin123"),
+                role="admin"
+            )
+            session.add(admin)
+            session.commit()
+            print("Dev admin created: username='admin', password='admin123'")
+
+
 # Inicjalizacja aplikacji FastAPI
 app = FastAPI(
     title="Properlytics API",
@@ -128,10 +148,12 @@ app.add_middleware(
 from app.routers.flat_listings import router as flat_listings_router
 from app.routers.house_listings import router as house_listings_router
 from app.routers.plot_listings import router as plot_listings_router
+from app.routers.auth import router as auth_router
 
 app.include_router(flat_listings_router)
 app.include_router(house_listings_router)
 app.include_router(plot_listings_router)
+app.include_router(auth_router)
 
 
 @app.on_event("startup")
@@ -139,6 +161,7 @@ def startup_event():
     create_db_and_tables()
     load_models()
     _force_single_thread_for_flat()
+    create_admin_user()
 
 
 @app.get("/")
@@ -415,7 +438,7 @@ def predict_plot(data: PlotInput):
 
 
 @app.post("/admin/retrain")
-def retrain_models():
+def retrain_models(admin: AdminUser = Depends(require_admin)):
     run_retraining()
     return {"status": "Modele wytrenowane i załadowane ponownie"}
 
