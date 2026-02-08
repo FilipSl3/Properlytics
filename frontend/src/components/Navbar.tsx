@@ -1,9 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
 
   const isExact = (path: string) => location.pathname === path;
   const isSection = (prefix: string) => location.pathname === prefix || location.pathname.startsWith(prefix + "/");
@@ -54,12 +52,6 @@ export default function Navbar() {
               className={`${linkClass} ${linkStyle(isExact('/admin'))}`}
             >
               <span className="text-2xl">⚙️</span> Admin
-            </Link>
-            <Link
-              to="/"
-              className="text-base font-medium text-gray-400 hover:text-gray-800 transition px-4 py-2 hover:bg-gray-100 rounded-lg"
-            >
-              Powrót do startu
             </Link>
           </div>
         </div>

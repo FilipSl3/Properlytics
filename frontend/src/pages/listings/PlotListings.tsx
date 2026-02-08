@@ -22,9 +22,7 @@ export default function PlotListings() {
   };
 
   useEffect(() => {
-    let alive = true;
     loadListings();
-    return () => { alive = false; };
   }, []);
 
   if (loading) return <div className="text-gray-600">Ładowanie...</div>;

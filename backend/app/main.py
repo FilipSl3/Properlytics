@@ -21,7 +21,6 @@ warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 TOP_N_SHAP = 15
 
-
 def clean_feature_name(name: str) -> str:
     return (
         name.replace("num__", "")
