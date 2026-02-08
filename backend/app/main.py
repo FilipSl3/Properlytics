@@ -126,7 +126,12 @@ app.add_middleware(
 
 # Routery
 from app.routers.flat_listings import router as flat_listings_router
+from app.routers.house_listings import router as house_listings_router
+from app.routers.plot_listings import router as plot_listings_router
+
 app.include_router(flat_listings_router)
+app.include_router(house_listings_router)
+app.include_router(plot_listings_router)
 
 
 @app.on_event("startup")
@@ -209,30 +214,30 @@ def predict_flat(data: FlatInput):
         input_df["floor"] = str(current_floor_int)
 
     value_translation_map = {
-        # ogrzewanie
+        
         "district": "urban",
         "gas": "gas",
         "electric": "electrical",
         "boiler": "boiler_room",
 
-        # rynek
+        
         "primary": "PRIMARY",
         "secondary": "SECONDARY",
 
-        # typ budynku
+       
         "block": "block",
         "tenement": "tenement",
         "apartment": "apartment",
         "house": "house",
 
-        # materiał
+        
         "brick": "brick",
         "concrete_plate": "concrete_plate",
         "concrete": "concrete",
         "silikat": "silikat",
         "breezeblock": "breezeblock",
 
-        # wykończenie
+        
         "ready_to_use": "ready_to_use",
         "to_completion": "to_completion",
         "to_renovation": "to_renovation",
@@ -274,7 +279,7 @@ def predict_flat(data: FlatInput):
         except Exception:
             pass
 
-    # OGRZEWANIE
+    
     curr_heat = input_df.iloc[0]["heating"]
     if curr_heat == "urban":
         check_diff("heating", "electrical", "Ogrzewanie miejskie")
@@ -283,14 +288,14 @@ def predict_flat(data: FlatInput):
     else:
         check_diff("heating", "urban", "Ogrzewanie")
 
-    # RYNEK
+    
     curr_market = input_df.iloc[0]["market"]
     if curr_market == "PRIMARY":
         check_diff("market", "SECONDARY", "Rynek pierwotny")
     else:
         check_diff("market", "PRIMARY", "Rynek wtórny")
 
-    # STAN
+    
     curr_fin = input_df.iloc[0]["finishing"]
     if curr_fin == "ready_to_use":
         check_diff("finishing", "to_renovation", "Stan: pod klucz")
@@ -299,7 +304,7 @@ def predict_flat(data: FlatInput):
     else:
         check_diff("finishing", "ready_to_use", "Stan deweloperski")
 
-    # MATERIAŁ
+    
     curr_mat = input_df.iloc[0]["building_material"]
     mat_pl_names = {
         "brick": "Cegła",
@@ -316,7 +321,7 @@ def predict_flat(data: FlatInput):
     else:
         check_diff("building_material", "concrete_plate", f"Materiał: {label_mat}")
 
-    # PIĘTRO
+    
     curr_floor_str = input_df.iloc[0]["floor"]
     has_elevator = input_df.iloc[0]["elevator"]
     optimal_floors = ["1", "2", "3"]
@@ -333,7 +338,7 @@ def predict_flat(data: FlatInput):
     elif curr_floor_str == "higher_10":
         check_diff("floor", "3", "Apartament na szczycie (>10p)")
 
-    # TYP BUDYNKU
+    
     curr_type = input_df.iloc[0]["building_type"]
     if curr_type == "apartment":
         check_diff("building_type", "block", "Typ: Apartamentowiec")
@@ -344,7 +349,7 @@ def predict_flat(data: FlatInput):
     elif curr_type == "block":
         check_diff("building_type", "apartment", "Typ: Blok (vs Apartament)")
 
-    # ROK BUDOWY
+    
     curr_year = input_df.iloc[0]["year_built"]
     if curr_year < 1945:
         era_label = "Kamienica/Przedwojenne"
