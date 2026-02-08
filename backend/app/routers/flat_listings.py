@@ -18,7 +18,7 @@ def create_listing(listing: FlatListing, session: Session = Depends(get_session)
 
 @router.get("", response_model=List[FlatListing])
 def list_listings(session: Session = Depends(get_session)):
-    stmt = select(FlatListing).where(FlatListing.is_active == True)
+    stmt = select(FlatListing).where(FlatListing.is_active == True).order_by(FlatListing.is_verified.desc(), FlatListing.created_at.desc())
     return session.exec(stmt).all()
 
 @router.get("/{listing_id}", response_model=FlatListing)

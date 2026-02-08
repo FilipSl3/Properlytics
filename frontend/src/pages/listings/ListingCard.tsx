@@ -82,6 +82,11 @@ export default function ListingCard({ listing, to, subtitleLines = [], onRefresh
                   {t}
                 </span>
               ))}
+              {!listing.is_verified && (
+                <span className="text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                  Oczekujące weryfikacji
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -99,17 +104,6 @@ export default function ListingCard({ listing, to, subtitleLines = [], onRefresh
             title={listing.is_verified ? "Odznacz weryfikację" : "Zweryfikuj"}
           >
             ✓
-          </button>
-          <button
-            onClick={(e) => { e.preventDefault(); handleAction("deactivate"); }}
-            className={`p-1.5 rounded-lg shadow-sm ${
-              listing.is_active
-                ? "bg-blue-500 text-white"
-                : "bg-gray-400 text-white"
-            }`}
-            title={listing.is_active ? "Ukryj" : "Pokaż"}
-          >
-            👁
           </button>
           <button
             onClick={(e) => {

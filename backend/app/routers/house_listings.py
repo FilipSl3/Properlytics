@@ -18,7 +18,7 @@ def create_listing(listing: HouseListing, session: Session = Depends(get_session
 
 @router.get("", response_model=List[HouseListing])
 def list_listings(session: Session = Depends(get_session)):
-    stmt = select(HouseListing).where(HouseListing.is_active == True)
+    stmt = select(HouseListing).where(HouseListing.is_active == True).order_by(HouseListing.is_verified.desc(), HouseListing.created_at.desc())
     return session.exec(stmt).all()
 
 @router.get("/{listing_id}", response_model=HouseListing)
