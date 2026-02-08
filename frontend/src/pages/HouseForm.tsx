@@ -91,7 +91,7 @@ export default function HouseForm() {
   const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
-    const cityLower = formData.city.trim().toLowerCase();
+    const cityLower = formData.city.toString().trim().toLowerCase();
     if (CITY_TO_PROVINCE[cityLower]) {
       setFormData(prev => ({ ...prev, province: CITY_TO_PROVINCE[cityLower] }));
     }
@@ -99,7 +99,6 @@ export default function HouseForm() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-
     const isCheckbox = type === 'checkbox';
     const checked = isCheckbox ? (e.target as HTMLInputElement).checked : false;
 
@@ -144,7 +143,7 @@ export default function HouseForm() {
     if (!formData.year || year < 1800) newErrors.year = "Rok musi być > 1800";
     if (year > currentYear + 5) newErrors.year = `Max rok to ${currentYear + 5}`;
 
-    if (!formData.city.trim()) newErrors.city = "Wymagane";
+    if (!formData.city.toString().trim()) newErrors.city = "Wymagane";
     if (!formData.province) newErrors.province = "Wymagane";
 
     setErrors(newErrors);
@@ -187,9 +186,7 @@ export default function HouseForm() {
     return Object.entries(predictionData.shap_values)
       .filter(([key]) => {
         const k = key.toLowerCase();
-
         if (['area', 'plot', 'rooms', 'year', 'floors'].some(x => k.includes(x))) return true;
-
         if (k.includes('garage') && formData.hasGarage) return true;
         if (k.includes('basement') && formData.hasBasement) return true;
         if (k.includes('gas') && formData.hasGas) return true;
@@ -249,16 +246,34 @@ export default function HouseForm() {
       .filter(item => Math.abs(item.value) > 50);
   };
 
+  
   const houseFeaturesForListing = useMemo(() => {
     if (!predictionData) return null;
 
     return {
-      ...formData,
-      areaHouse: Number(formData.areaHouse),
-      areaPlot: Number(formData.areaPlot),
+      
+      area: Number(formData.areaHouse),      
+      plot_area: Number(formData.areaPlot),  
+      heating: formData.heatingType,         
+      
+      
       rooms: Number(formData.rooms),
       floors: Number(formData.floors),
       year: Number(formData.year),
+      city: formData.city,
+      province: formData.province,
+      district: "", 
+      buildType: formData.buildType,
+      material: formData.material,
+      market: formData.market,
+      constructionStatus: formData.constructionStatus,
+
+      
+      hasGarage: formData.hasGarage ? 1 : 0,
+      hasGarden: 0, 
+      
+      
+      has_basement: formData.hasBasement ? 1 : 0,
     };
   }, [predictionData, formData]);
 

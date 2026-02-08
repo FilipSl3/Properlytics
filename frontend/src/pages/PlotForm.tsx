@@ -81,8 +81,8 @@ export default function PlotForm() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-
     const isCheckbox = type === 'checkbox';
+    // Rzutowanie na HTMLInputElement, żeby dostać 'checked'
     const checked = isCheckbox ? (e.target as HTMLInputElement).checked : false;
 
     setFormData(prev => ({
@@ -114,6 +114,7 @@ export default function PlotForm() {
     setApiError(null);
     setPredictionData(null);
 
+    // Payload do predykcji (ML)
     const payload = {
       ...formData,
       area: Number(formData.area),
@@ -138,7 +139,6 @@ export default function PlotForm() {
     return Object.entries(predictionData.shap_values)
       .filter(([key]) => {
         const k = key.toLowerCase();
-
         if (k.includes('area')) return true;
         if (k.includes('electricity') && formData.hasElectricity) return true;
         if (k.includes('water') && formData.hasWater) return true;
@@ -203,11 +203,28 @@ export default function PlotForm() {
       .filter(item => Math.abs(item.value) > 50);
   };
 
+ 
   const plotFeaturesForListing = useMemo(() => {
     if (!predictionData) return null;
+    
+    
     return {
-      ...formData,
+      
+      plot_type: formData.type,       
       area: Number(formData.area),
+      city: formData.city,
+      province: formData.province,
+      district: "",                  
+
+      
+      has_electricity: formData.hasElectricity ? 1 : 0,
+      has_water: formData.hasWater ? 1 : 0,
+      has_gas: formData.hasGas ? 1 : 0,
+      has_sewage: formData.hasSewerage ? 1 : 0,
+      is_fenced: formData.hasFence ? 1 : 0,
+      
+      
+      access_road: formData.isHardAccess ? "utwardzona" : "polna",
     };
   }, [predictionData, formData]);
 
@@ -335,6 +352,7 @@ export default function PlotForm() {
                   </div>
                 )}
 
+                {/* --- COMPONENT DO WYSTAWIANIA OGŁOSZEŃ --- */}
                 {plotFeaturesForListing && (
                   <PublishListingPanel
                     kind="plots"
