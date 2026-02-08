@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import api from "../../api";
+import { useAuth } from "../../context/AuthContext";
 import {
   LISTING_ENDPOINTS,
   formatPrice,
@@ -23,6 +24,7 @@ function Param({ label, value }: ParamRow) {
 
 export default function FlatListingDetails() {
   const { id } = useParams();
+  const { isAuthenticated, token } = useAuth();
   const [item, setItem] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -282,6 +284,25 @@ export default function FlatListingDetails() {
               )}
             </div>
           </div>
+
+          {isAuthenticated && item && (
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Panel Administratora</h3>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => {
+                    if (!confirm("Czy na pewno usunąć to ogłoszenie?")) return;
+                    api.delete(`/admin/listings/flat/${item.id}`, { headers: { Authorization: `Bearer ${token}` } })
+                      .then(() => window.location.href = "/ogloszenia/mieszkania")
+                      .catch(err => alert(err.response?.data?.detail || "Błąd"));
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                >
+                  🗑️ Usuń ogłoszenie
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -8,25 +8,22 @@ export default function FlatListings() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
+  const loadListings = async () => {
+    try {
+      setLoading(true);
+      setErr("");
+      const res = await api.get(LISTING_ENDPOINTS.flats);
+      setItems(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setErr("Nie udało się pobrać ogłoszeń mieszkań.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let alive = true;
-
-    async function load() {
-      try {
-        setLoading(true);
-        setErr("");
-        const res = await api.get(LISTING_ENDPOINTS.flats);
-        if (!alive) return;
-        setItems(Array.isArray(res.data) ? res.data : []);
-      } catch {
-        if (!alive) return;
-        setErr("Nie udało się pobrać ogłoszeń mieszkań.");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    }
-
-    load();
+    loadListings();
     return () => { alive = false; };
   }, []);
 
@@ -47,6 +44,7 @@ export default function FlatListings() {
             listing={l}
             to={`/ogloszenia/mieszkania/${l.id}`}
             subtitleLines={[area, rooms, floor].filter(Boolean) as string[]}
+            onRefresh={loadListings}
           />
         );
       })}

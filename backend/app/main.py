@@ -149,11 +149,13 @@ from app.routers.flat_listings import router as flat_listings_router
 from app.routers.house_listings import router as house_listings_router
 from app.routers.plot_listings import router as plot_listings_router
 from app.routers.auth import router as auth_router
+from app.routers.admin_listings import router as admin_listings_router
 
 app.include_router(flat_listings_router)
 app.include_router(house_listings_router)
 app.include_router(plot_listings_router)
 app.include_router(auth_router)
+app.include_router(admin_listings_router)
 
 
 @app.on_event("startup")

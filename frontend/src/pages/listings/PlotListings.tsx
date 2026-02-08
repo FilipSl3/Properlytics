@@ -8,25 +8,22 @@ export default function PlotListings() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
+  const loadListings = async () => {
+    try {
+      setLoading(true);
+      setErr("");
+      const res = await api.get(LISTING_ENDPOINTS.plots);
+      setItems(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setErr("Nie udało się pobrać ogłoszeń działek.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let alive = true;
-
-    async function load() {
-      try {
-        setLoading(true);
-        setErr("");
-        const res = await api.get(LISTING_ENDPOINTS.plots);
-        if (!alive) return;
-        setItems(Array.isArray(res.data) ? res.data : []);
-      } catch {
-        if (!alive) return;
-        setErr("Nie udało się pobrać ogłoszeń działek.");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    }
-
-    load();
+    loadListings();
     return () => { alive = false; };
   }, []);
 
@@ -46,6 +43,7 @@ export default function PlotListings() {
             listing={l}
             to={`/ogloszenia/dzialki/${l.id}`}
             subtitleLines={[area, purpose].filter(Boolean) as string[]}
+            onRefresh={loadListings}
           />
         );
       })}

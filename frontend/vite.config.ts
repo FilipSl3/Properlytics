@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => {
           target: apiTarget,
           changeOrigin: true,
         },
-        "/admin/retrain": {
+        "/admin": {
           target: apiTarget,
           changeOrigin: true,
         },

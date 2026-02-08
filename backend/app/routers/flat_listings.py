@@ -4,6 +4,8 @@ from sqlmodel import Session, select
 
 from app.db import get_session
 from app.models.listing_flat import FlatListing
+from app.auth import require_admin
+from app.models.admin import AdminUser
 
 router = APIRouter(prefix="/api/listings/flats", tags=["Listings (Flats)"])
 
@@ -27,7 +29,7 @@ def get_listing(listing_id: int, session: Session = Depends(get_session)):
     return listing
 
 @router.patch("/{listing_id}", response_model=FlatListing)
-def update_listing(listing_id: int, data: FlatListing, session: Session = Depends(get_session)):
+def update_listing(listing_id: int, data: FlatListing, admin: AdminUser = Depends(require_admin), session: Session = Depends(get_session)):
     listing = session.get(FlatListing, listing_id)
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
@@ -42,7 +44,7 @@ def update_listing(listing_id: int, data: FlatListing, session: Session = Depend
     return listing
 
 @router.delete("/{listing_id}")
-def delete_listing(listing_id: int, session: Session = Depends(get_session)):
+def delete_listing(listing_id: int, admin: AdminUser = Depends(require_admin), session: Session = Depends(get_session)):
     listing = session.get(FlatListing, listing_id)
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")

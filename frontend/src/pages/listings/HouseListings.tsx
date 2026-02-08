@@ -8,25 +8,22 @@ export default function HouseListings() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
+  const loadListings = async () => {
+    try {
+      setLoading(true);
+      setErr("");
+      const res = await api.get(LISTING_ENDPOINTS.houses);
+      setItems(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setErr("Nie udało się pobrać ogłoszeń domów.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let alive = true;
-
-    async function load() {
-      try {
-        setLoading(true);
-        setErr("");
-        const res = await api.get(LISTING_ENDPOINTS.houses);
-        if (!alive) return;
-        setItems(Array.isArray(res.data) ? res.data : []);
-      } catch {
-        if (!alive) return;
-        setErr("Nie udało się pobrać ogłoszeń domów.");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    }
-
-    load();
+    loadListings();
     return () => { alive = false; };
   }, []);
 
@@ -47,6 +44,7 @@ export default function HouseListings() {
             listing={l}
             to={`/ogloszenia/domy/${l.id}`}
             subtitleLines={[area, rooms, year].filter(Boolean) as string[]}
+            onRefresh={loadListings}
           />
         );
       })}
